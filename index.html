@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Picture Cube Solver</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{
+    --bg:#0b0d12; --text:#eef1f6; --muted:#9aa3b2;
+    --glass:rgba(255,255,255,.045); --glass2:rgba(255,255,255,.07); --line:rgba(255,255,255,.09);
+    --accent:#5b8cff; --accent2:#7b5bff; --ok:#2fd07a; --bad:#ff6b6b;
+    --U:#f6f7fb; --R:#e23b3b; --F:#2fb24d; --D:#f4d03f; --L:#ef8b27; --B:#2d6fe0;
+    --shadow:0 14px 44px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:15px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+    radial-gradient(900px 620px at 12% -12%, rgba(91,140,255,.20), transparent 60%),
+    radial-gradient(820px 600px at 112% 4%, rgba(123,91,255,.17), transparent 55%),
+    radial-gradient(760px 720px at 50% 122%, rgba(47,208,122,.10), transparent 60%);}
+  .wrap{max-width:1080px;margin:0 auto;padding:30px 20px 70px}
+  /* header */
+  .hdr{display:flex;gap:16px;align-items:center;margin:0 0 24px;animation:fadeUp .55s ease both}
+  .logo{width:54px;height:54px;flex:none;border-radius:16px;display:grid;place-items:center;font-size:28px;
+        background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 10px 26px rgba(91,140,255,.45);
+        animation:float 4s ease-in-out infinite}
+  h1{font-size:30px;line-height:1.1;margin:0 0 4px;font-weight:800;letter-spacing:-.6px;
+     background:linear-gradient(92deg,#fff,#c5d2ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);margin:0;font-size:15px}
+  .layout{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .card{background:var(--glass);border:1px solid var(--line);border-radius:20px;padding:22px;
+        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);
+        animation:fadeUp .5s ease both}
+  .grow{flex:1;min-width:330px}
+  /* net */
+  .net{display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:repeat(9,1fr);
+       gap:11px;width:100%;max-width:560px;aspect-ratio:12/9;margin:10px auto 2px;
+       touch-action:none;-webkit-user-select:none;user-select:none}
+  .face{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px}
+  .cell{border-radius:8px;cursor:pointer;position:relative;touch-action:none;
+        transition:transform .08s ease,filter .12s ease;
+        box-shadow:inset 0 0 0 1px rgba(0,0,0,.28), inset 0 3px 6px rgba(255,255,255,.22), inset 0 -3px 6px rgba(0,0,0,.18)}
+  .cell:hover{filter:brightness(1.08) saturate(1.05)}
+  .cell:active{transform:scale(.9)}
+  .cell.flag{box-shadow:inset 0 0 0 2px #ff5a5f, 0 0 10px 2px rgba(255,90,95,.6);z-index:1}
+  .cell.flag::after{content:'?';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+        font-weight:900;font-size:15px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none}
+  .center{cursor:pointer}
+  .center .ref{position:absolute;top:-3px;left:50%;transform:translateX(-50%);width:0;height:0;
+        border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid var(--ok);
+        filter:drop-shadow(0 0 2px rgba(0,0,0,.6));pointer-events:none;z-index:2}
+  .center .arrow{position:absolute;left:50%;top:50%;transform-origin:center;
+        transform:translate(-50%,-50%);pointer-events:none;color:#111;font-weight:800;font-size:16px;
+        text-shadow:0 0 2px #fff,0 0 2px #fff}
+  .center .degBadge{position:absolute;right:2px;bottom:1px;font-size:9px;font-weight:800;line-height:1;
+        padding:2px 4px;border-radius:5px;background:rgba(0,0,0,.74);color:#fff;pointer-events:none;
+        box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .center .degBadge.ok{background:var(--ok);color:#06210f}
+  .fU{grid-column:4/7;grid-row:1/4}
+  .fL{grid-column:1/4;grid-row:4/7}
+  .fF{grid-column:4/7;grid-row:4/7}
+  .fR{grid-column:7/10;grid-row:4/7}
+  .fB{grid-column:10/13;grid-row:4/7}
+  .fD{grid-column:4/7;grid-row:7/10}
+  /* palette */
+  .palette{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .sw{width:42px;height:42px;border-radius:13px;cursor:pointer;position:relative;
+      transition:transform .16s cubic-bezier(.34,1.56,.64,1),box-shadow .16s;
+      box-shadow:0 3px 8px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.18),inset 0 3px 5px rgba(255,255,255,.25)}
+  .sw:hover{transform:translateY(-4px) scale(1.06)}
+  .sw.sel{transform:translateY(-3px) scale(1.1);
+      box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--accent),0 8px 18px rgba(0,0,0,.45)}
+  .sw.sel::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;
+      color:#111;font-weight:900;font-size:18px;text-shadow:0 0 3px rgba(255,255,255,.9)}
+  .selColor{font-size:13px;color:var(--muted);margin-bottom:14px}
+  .selColor b{color:var(--text)}
+  /* camera scan */
+  .camWrap{display:none}
+  .camWrap.show{display:block}
+  .camStage{position:relative;width:100%;max-width:400px;margin:2px auto 10px;border-radius:16px;
+            overflow:hidden;background:#000;aspect-ratio:1;box-shadow:var(--shadow)}
+  .camStage video{width:100%;height:100%;object-fit:cover;display:block}
+  .camGridOv{position:absolute;left:15%;top:15%;width:70%;height:70%;display:grid;
+             grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+  .camGridOv i{border:2px solid rgba(255,255,255,.9);box-sizing:border-box;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+  .camInfo{text-align:center;color:var(--muted);font-size:14px;line-height:1.5;margin:4px 0 10px}
+  .camInfo b{color:var(--text)}
+  .camDots{display:flex;gap:7px;justify-content:center;margin-top:10px}
+  .camDots span{width:24px;height:24px;border-radius:7px;border:1px solid var(--line);transition:box-shadow .15s}
+  .scanScene{width:150px;height:140px;margin:4px auto 2px;perspective:560px;position:relative;cursor:grab;touch-action:none}
+  .scanScene:active{cursor:grabbing}
+  .camDots span{cursor:pointer}
+  .scanCube{position:absolute;left:50%;top:50%;transform-style:preserve-3d;transition:transform .55s ease}
+  .scanCube .facelet3d.todo{box-shadow:inset 0 0 0 2px #ffcf3f, 0 0 11px 2px rgba(255,207,63,.8)}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  button{font:inherit;font-weight:600;border:0;border-radius:13px;padding:11px 18px;cursor:pointer;color:#fff;
+          background:var(--glass2);border:1px solid var(--line);
+          transition:transform .12s ease,box-shadow .15s ease,filter .12s ease,background .2s}
+  button:hover{transform:translateY(-2px);filter:brightness(1.08)}
+  button:active{transform:translateY(0) scale(.98)}
+  button:disabled{opacity:.6;cursor:default;transform:none;box-shadow:none}
+  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:0;
+          box-shadow:0 8px 22px rgba(91,140,255,.40)}
+  button.primary:hover{box-shadow:0 12px 28px rgba(91,140,255,.5)}
+  button.ghost{background:transparent;color:var(--text)}
+  button.ghost:hover{background:var(--glass2)}
+  .msg{margin-top:14px;padding:12px 14px;border-radius:13px;font-size:14px;display:none;animation:fadeUp .3s ease both}
+  .msg.show{display:block}
+  .msg.err{background:rgba(255,107,107,.13);border:1px solid rgba(255,107,107,.5);color:#ffc4c4}
+  .msg.good{background:rgba(47,208,122,.13);border:1px solid rgba(47,208,122,.5);color:#a7f3c9}
+  /* solution */
+  .sol{min-width:310px;flex:1}
+  .solhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .solhead h3{margin:0;font-size:19px;font-weight:800;letter-spacing:-.3px}
+  .speedRow{display:flex;align-items:center;gap:10px;margin:0 0 14px;color:var(--muted);font-size:13px;font-weight:600}
+  .speedRow input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:99px;
+        background:rgba(255,255,255,.14);outline:none;cursor:pointer}
+  .speedRow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+        background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 2px 8px rgba(91,140,255,.6);cursor:pointer}
+  .speedRow input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radius:50%;
+        background:var(--accent);box-shadow:0 2px 8px rgba(91,140,255,.6);cursor:pointer}
+  .speedRow #speedLabel{min-width:52px;text-align:right;color:var(--text)}
+  .progress{height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin:12px 0 6px}
+  .progressFill{height:100%;width:0;border-radius:99px;
+        background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s ease}
+  .stage{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;
+        background:rgba(255,255,255,.025);animation:fadeUp .4s ease both}
+  .stage h4{margin:0 0 7px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700}
+  .moves{display:flex;gap:7px;flex-wrap:wrap}
+  .mv{background:var(--glass2);border:1px solid var(--line);border-radius:10px;padding:5px 7px 4px;font-weight:700;
+      font-variant:tabular-nums;transition:transform .18s ease,background .18s ease,box-shadow .18s ease;
+      display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+  .mv:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .mvicon{width:26px;height:22px;display:block}
+  .mvlabel{font-size:12.5px;line-height:1}
+  .mv.done{opacity:.32}
+  .mv.cur{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent;
+      transform:scale(1.14);box-shadow:0 6px 16px rgba(91,140,255,.5);animation:pulse 1.5s ease-in-out infinite}
+  .counter{color:var(--muted);font-size:13.5px;margin:2px 0 4px;font-weight:600}
+  .legend{color:var(--muted);font-size:12.5px;margin-top:16px;line-height:1.75}
+  .legend code{background:var(--glass2);padding:1.5px 7px;border-radius:6px;color:var(--text);font-weight:700}
+  .hidden{display:none}
+  .hint{color:var(--muted);font-size:12.5px;margin-top:8px}
+  /* 3D cube */
+  .scene{display:none;width:100%;max-width:360px;height:344px;margin:8px auto 2px;
+         perspective:1000px;position:relative;cursor:grab;touch-action:none;border-radius:18px;
+         background:radial-gradient(closest-side at 50% 58%, rgba(91,140,255,.10), transparent 75%)}
+  .scene.show{display:block;animation:fadeUp .45s ease both}
+  .scene:active{cursor:grabbing}
+  .cube3d{position:absolute;left:50%;top:50%;transform-style:preserve-3d;transition:transform .25s ease}
+  .cubie{position:absolute;transform-style:preserve-3d}
+  .facelet3d{position:absolute;border-radius:8px;border:1px solid rgba(0,0,0,.5);box-sizing:border-box;
+             box-shadow:inset 0 0 0 2px rgba(0,0,0,.18), inset 0 3px 6px rgba(255,255,255,.18)}
+  .cubie.hl .facelet3d.outer{box-shadow:inset 0 0 0 3px #fff, 0 0 16px 4px rgba(255,255,255,.6);filter:brightness(1.14)}
+  .ctrMark{position:absolute;left:50%;top:50%;width:58%;height:58%;transform:translate(-50%,-50%);
+           pointer-events:none;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff)}
+  .ctrMark.edge{width:42%;height:42%;opacity:.92}
+  .ctrMark svg{width:100%;height:100%;display:block}
+  .turnLabel{position:absolute;left:50%;top:6px;transform:translateX(-50%);text-align:center;
+             font-size:26px;font-weight:800;letter-spacing:.5px;pointer-events:none;z-index:3;
+             padding:7px 18px;border-radius:16px;background:rgba(12,14,20,.66);
+             backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 22px rgba(0,0,0,.45)}
+  .turnLabel:empty{display:none}
+  .turnLabel small{font-size:13px;color:var(--muted);display:block;font-weight:600;letter-spacing:0}
+  .scene .arrow3d{position:absolute;font-size:34px;pointer-events:none;color:#ffd54a;
+             text-shadow:0 0 10px rgba(0,0,0,.8);transition:opacity .2s}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  @keyframes pulse{0%,100%{box-shadow:0 6px 16px rgba(91,140,255,.5),0 0 0 0 rgba(91,140,255,.5)}
+                   50%{box-shadow:0 6px 16px rgba(91,140,255,.5),0 0 0 7px rgba(91,140,255,0)}}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
+           border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:7px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (max-width:680px){ .wrap{padding:20px 14px 50px} h1{font-size:25px} .logo{width:46px;height:46px;font-size:24px} .card{padding:16px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hdr">
+    <div class="logo">🧩</div>
+    <div>
+      <h1>Picture Cube Solver</h1>
+      <p class="sub">Paint your cube, set the centre pictures, and get the fastest solution, animated step by step.</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- LEFT: entry -->
+    <div class="card grow">
+      <div class="selColor" id="selColor"></div>
+      <div class="palette" id="palette"></div>
+      <div class="hint" id="paintHint">Pick a colour, then click or <b>drag</b> across stickers to paint. Click a <b>centre</b> to rotate its picture.</div>
+      <div class="net" id="net"></div>
+      <div class="scene" id="scene">
+        <div class="turnLabel" id="turnLabel"></div>
+        <div class="cube3d" id="cube3d"></div>
+        <div class="arrow3d" id="arrow3d" style="opacity:0">⟳</div>
+      </div>
+      <div class="hint" id="dragHint" style="display:none">Drag the cube to rotate your view. The glowing layer is the one to turn.</div>
+      <div class="camWrap" id="camWrap">
+        <div class="camStage">
+          <video id="camVideo" playsinline muted></video>
+          <div class="camGridOv"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="scanScene"><div class="scanCube" id="scanCube"></div></div>
+        <div class="camInfo" id="camInfo"></div>
+        <div class="btns">
+          <button class="primary" id="camCapture">📸 Capture</button>
+          <button class="ghost" id="camDone" disabled>✓ Use colours</button>
+          <button class="ghost" id="camCancel">Cancel</button>
+        </div>
+      </div>
+      <div class="btns" id="editBtns">
+        <button class="primary" id="solveBtn">✦ Solve</button>
+        <button class="ghost" id="scanBtn">📷 Scan</button>
+        <button class="ghost" id="resetBtn">↺ Reset</button>
+        <button class="ghost" id="scrambleBtn">🎲 Scramble</button>
+        <button class="ghost" id="exportScanBtn" style="display:none">📋 Copy scan data</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <canvas id="camCanvas" style="display:none"></canvas>
+    </div>
+
+    <!-- RIGHT: solution -->
+    <div class="card sol hidden" id="solCard">
+      <div class="solhead">
+        <h3>Solution</h3>
+        <button class="ghost" id="editBtn">‹ Edit</button>
+      </div>
+      <div class="progress"><div class="progressFill" id="progressFill"></div></div>
+      <div class="counter" id="counter"></div>
+      <div class="btns" style="margin:6px 0 10px">
+        <button class="primary" id="playBtn">▶ Play</button>
+        <button class="ghost" id="prevBtn">‹ Prev</button>
+        <button class="ghost" id="nextBtn">Next ›</button>
+        <button class="ghost" id="resetStepBtn">↺ Restart</button>
+      </div>
+      <div class="speedRow">
+        <span>🐢</span>
+        <input type="range" id="speedRange" min="0" max="100" value="50">
+        <span>🐇</span>
+        <span id="speedLabel">Normal</span>
+      </div>
+      <div id="stages"></div>
+      <div id="centerNote" class="legend"></div>
+      <div class="legend">
+        Notation: a letter is a 90° clockwise turn of that face as you look straight at it.
+        <code>U</code> Up, <code>D</code> Down, <code>R</code> Right, <code>L</code> Left,
+        <code>F</code> Front, <code>B</code> Back. A <code>'</code> means counter-clockwise,
+        a <code>2</code> means a half turn (180°). The centre-fix steps also use slice turns:
+        <code>M</code> the middle layer (between L and R, turned like L),
+        <code>E</code> the equator (between U and D, like D),
+        <code>S</code> the standing layer (between F and B, like F).
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== cube-engine.js ===== */
+// cube-engine.js
+// Core 3x3 cube model: 54 facelets, the 6 face turns, apply/scramble/solved.
+// Works in both Node (module.exports) and the browser (window.CubeEngine).
+//
+// Facelet layout (URFDLB, row-major per face):
+//   U = 0..8, R = 9..17, F = 18..26, D = 27..35, L = 36..44, B = 45..53
+//
+// A "state" is an Int array of length 54 where each entry is the face index
+// (0=U,1=R,2=F,3=D,4=L,5=B) that the sticker's COLOUR belongs to.
+// The cube is solved when state[i] === Math.floor(i / 9) for every i.
+//
+// Moves are generated from 3D sticker geometry (position + outward normal),
+// not hand-typed permutation tables, so the turn metric is correct by
+// construction. CW = clockwise when looking at that face from outside.
+
+(function (root, factory) {
+  if (typeof module !== 'undefined' && module.exports) module.exports = factory();
+  else root.CubeEngine = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var FACES = ['U', 'R', 'F', 'D', 'L', 'B'];
+
+  // ---- 3D geometry for every sticker -------------------------------------
+  // Coordinate frame: x = L(-1)..R(+1), y = D(-1)..U(+1), z = B(-1)..F(+1).
+  // Local (row r top->bottom, col c left->right as seen looking at the face
+  // from outside) maps to 3D as follows (derived once, verified by tests):
+  var pos = new Array(54), nor = new Array(54);
+
+  function setFace(base, fn, normal) {
+    for (var r = 0; r < 3; r++) {
+      for (var c = 0; c < 3; c++) {
+        var i = base + r * 3 + c;
+        pos[i] = fn(r, c);
+        nor[i] = normal.slice();
+      }
+    }
+  }
+  setFace(0,  function (r, c) { return [c - 1, 1, r - 1]; }, [0, 1, 0]);   // U
+  setFace(9,  function (r, c) { return [1, 1 - r, 1 - c]; }, [1, 0, 0]);   // R
+  setFace(18, function (r, c) { return [c - 1, 1 - r, 1]; }, [0, 0, 1]);   // F
+  setFace(27, function (r, c) { return [c - 1, -1, 1 - r]; }, [0, -1, 0]); // D
+  setFace(36, function (r, c) { return [-1, 1 - r, c - 1]; }, [-1, 0, 0]); // L
+  setFace(45, function (r, c) { return [1 - c, 1 - r, -1]; }, [0, 0, -1]); // B
+
+  function vkey(p, n) { return p[0] + ',' + p[1] + ',' + p[2] + '|' + n[0] + ',' + n[1] + ',' + n[2]; }
+  var slotByKey = {};
+  for (var i = 0; i < 54; i++) slotByKey[vkey(pos[i], nor[i])] = i;
+
+  // Rotate a vector by +/-90 degrees about an axis. s = sin(theta) (+1 or -1),
+  // cos(theta) = 0.
+  function rotv(v, axis, s) {
+    var x = v[0], y = v[1], z = v[2];
+    if (axis === 'x') return [x, -s * z, s * y];
+    if (axis === 'y') return [s * z, y, -s * x];
+    return [-s * y, s * x, z]; // z
+  }
+  function axisOf(p, axis) { return axis === 'x' ? p[0] : axis === 'y' ? p[1] : p[2]; }
+
+  // Build the CW quarter-turn permutation for one face.
+  // perm[j] = i means: after the turn, slot j shows what was at slot i.
+  function genMove(axis, layer, s) {
+    var perm = new Array(54);
+    for (var k = 0; k < 54; k++) perm[k] = k;
+    for (var k2 = 0; k2 < 54; k2++) {
+      if (axisOf(pos[k2], axis) === layer) {
+        var np = rotv(pos[k2], axis, s);
+        var nn = rotv(nor[k2], axis, s);
+        var j = slotByKey[vkey(np, nn)];
+        perm[j] = k2;
+      }
+    }
+    return perm;
+  }
+
+  // CW-from-outside: faces whose normal points along +axis use s=-1,
+  // faces along -axis use s=+1.
+  // Slice moves: M follows L (x-mid), E follows D (y-mid), S follows F (z-mid).
+  var base = {
+    U: genMove('y', 1, -1),
+    D: genMove('y', -1, 1),
+    R: genMove('x', 1, -1),
+    L: genMove('x', -1, 1),
+    F: genMove('z', 1, -1),
+    B: genMove('z', -1, 1),
+    M: genMove('x', 0, 1),
+    E: genMove('y', 0, 1),
+    S: genMove('z', 0, -1)
+  };
+
+  function compose(a, b) { // apply a, then b  => b after a
+    var r = new Array(54);
+    for (var k = 0; k < 54; k++) r[k] = a[b[k]];
+    return r;
+  }
+  function invert(p) {
+    var r = new Array(54);
+    for (var k = 0; k < 54; k++) r[p[k]] = k;
+    return r;
+  }
+
+  // Full move table: X, X', X2 for each face.
+  var MOVES = {};
+  ['U', 'R', 'F', 'D', 'L', 'B', 'M', 'E', 'S'].forEach(function (f) {
+    var p = base[f];
+    MOVES[f] = p;
+    MOVES[f + "'"] = invert(p);
+    MOVES[f + '2'] = compose(p, p);
+  });
+
+  function applyPerm(state, perm) {
+    var r = new Array(54);
+    for (var k = 0; k < 54; k++) r[k] = state[perm[k]];
+    return r;
+  }
+
+  function solvedState() {
+    var s = new Array(54);
+    for (var k = 0; k < 54; k++) s[k] = Math.floor(k / 9);
+    return s;
+  }
+
+  // Parse a move string like "R U R' U2" into a token list.
+  function parse(seq) {
+    if (Array.isArray(seq)) return seq.slice();
+    return seq.trim().length ? seq.trim().split(/\s+/) : [];
+  }
+
+  function applySeq(state, seq) {
+    var toks = parse(seq), s = state;
+    for (var k = 0; k < toks.length; k++) {
+      var p = MOVES[toks[k]];
+      if (!p) throw new Error('Unknown move: ' + toks[k]);
+      s = applyPerm(s, p);
+    }
+    return s;
+  }
+
+  function isSolved(state) {
+    for (var k = 0; k < 54; k++) if (state[k] !== Math.floor(k / 9)) return false;
+    return true;
+  }
+
+  var ALL = [];
+  FACES.forEach(function (f) { ALL.push(f, f + "'", f + '2'); });
+
+  // Random scramble of n moves (avoids same-face repeats). rng() in [0,1).
+  function scramble(n, rng) {
+    rng = rng || Math.random;
+    var faces = FACES.slice(), out = [], last = null;
+    for (var k = 0; k < n; k++) {
+      var f;
+      do { f = faces[Math.floor(rng() * 6)]; } while (f === last);
+      last = f;
+      var suf = ['', "'", '2'][Math.floor(rng() * 3)];
+      out.push(f + suf);
+    }
+    return out;
+  }
+
+  function clone(state) { return state.slice(); }
+
+  return {
+    FACES: FACES,
+    MOVES: MOVES,
+    ALL_MOVES: ALL,
+    base: base,
+    pos: pos,
+    nor: nor,
+    solvedState: solvedState,
+    applyPerm: applyPerm,
+    applySeq: applySeq,
+    isSolved: isSolved,
+    scramble: scramble,
+    parse: parse,
+    clone: clone,
+    invert: invert,
+    compose: compose
+  };
+});
+</script>
+<script>
+/* ===== solver.js ===== */
+// solver.js
+// Layer-by-layer 3x3 solver built on cube-engine.js.
+//
+// Design: the solve proceeds through the usual LBL stages (bottom cross ->
+// bottom corners -> middle edges -> last-layer orient -> last-layer permute).
+// Each stage is expressed as "make this set of facelets correct while keeping
+// this other set correct", and a small breadth-first search over a curated
+// move/algorithm library finds the shortest sequence that does it. This is
+// correct-by-search rather than correct-by-memorised-cases.
+//
+// Works in Node (module.exports) and the browser (window.CubeSolver).
+
+(function (root, factory) {
+  var E = (typeof require !== 'undefined') ? require('./cube-engine.js')
+        : (root.CubeEngine);
+  if (typeof module !== 'undefined' && module.exports) module.exports = factory(E);
+  else root.CubeSolver = factory(E);
+})(typeof self !== 'undefined' ? self : this, function (E) {
+  'use strict';
+
+  var MOVES = E.MOVES, applyPerm = E.applyPerm, parse = E.parse, pos = E.pos;
+
+  function solvedVal(i) { return Math.floor(i / 9); }
+
+  // ---- facelet index groups (derived from geometry, see comments) --------
+  // Bottom (D) cross edge slots: [D-sticker, side-sticker]
+  var CROSS = {
+    F: [28, 25], R: [32, 16], B: [34, 52], L: [30, 43]
+  };
+  // Bottom (D) corner slots: 3 facelets each
+  var FL_CORNERS = {
+    DRF: [29, 26, 15], DRB: [35, 17, 51], DBL: [33, 53, 42], DLF: [27, 44, 24]
+  };
+  // Middle (E) edge slots: 2 facelets each
+  var MID = {
+    FR: [23, 12], RB: [14, 48], BL: [50, 39], LF: [41, 21]
+  };
+
+  var U_FACE = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  var U_EDGES = [1, 3, 5, 7];
+  var U_CORNER_SIDES = [18, 20, 9, 11, 45, 47, 36, 38]; // top-row corner stickers of F,R,B,L
+  var ALL_IDX = []; for (var z = 0; z < 54; z++) ALL_IDX.push(z);
+  var F2L_IDX = ALL_IDX.filter(function (i) { return pos[i][1] !== 1; }); // not in U layer
+
+  function correct(state, idxs) {
+    for (var k = 0; k < idxs.length; k++) if (state[idxs[k]] !== solvedVal(idxs[k])) return false;
+    return true;
+  }
+
+  // ---- move-library relabelling (for generating slot variants) -----------
+  // y-rotation letter map: F->R->B->L->F, U/D fixed. Applied k times.
+  var YMAP = { U: 'U', D: 'D', F: 'R', R: 'B', B: 'L', L: 'F' };
+  function relabelTok(tok, k) {
+    var face = tok[0], suf = tok.slice(1);
+    for (var n = 0; n < k; n++) face = YMAP[face];
+    return face + suf;
+  }
+  function relabelSeq(seq, k) {
+    return parse(seq).map(function (t) { return relabelTok(t, k); }).join(' ');
+  }
+  function rotations(seq) {
+    var out = [];
+    for (var k = 0; k < 4; k++) out.push(relabelSeq(seq, k));
+    return out;
+  }
+
+  // ---- move libraries ----------------------------------------------------
+  var LIB_CROSS = ['U', "U'", 'U2', 'F', 'F2', "F'", 'R', 'R2', "R'",
+                   'B', 'B2', "B'", 'L', 'L2', "L'"];
+  var LIB_CORNER = ['U', "U'", 'U2', 'R', 'R2', "R'", 'F', 'F2', "F'",
+                    'L', 'L2', "L'", 'B', 'B2', "B'"];
+  // Middle: AUF + the two F2L edge-insert triggers, in all 4 slot rotations.
+  var LIB_MID = ['U', "U'", 'U2']
+    .concat(rotations("U R U' R' U' F' U F"))
+    .concat(rotations("U' L' U L U F U' F'"));
+  // Last layer:
+  var LIB_EO = ['U', "U'", 'U2', "F R U R' U' F'", "F U R U' R' F'"];
+  var LIB_CO = ['U', "U'", 'U2', "R U R' U R U2 R'", "R U2 R' U' R U' R'",
+                "R' U' R U' R' U2 R", "L' U' L U' L' U2 L"];
+  var LIB_CP = ['U', "U'", 'U2', "R' F R' B2 R F' R' B2 R2", "R B' R F2 R' B R F2 R2"];
+  var LIB_EP = ['U', "U'", 'U2', "R U' R U R U R U' R' U' R2",
+                "R2 U R U R' U' R' U' R' U R'"];
+
+  function applyTokens(state, tokens) {
+    var s = state;
+    for (var i = 0; i < tokens.length; i++) s = applyPerm(s, MOVES[tokens[i]]);
+    return s;
+  }
+
+  // Breadth-first search over a move library.
+  //  goalIdx     : facelets that must be correct at the end
+  //  preserveIdx : facelets that must also be correct at the end
+  //  maxDepth    : maximum number of LIBRARY STEPS (not move tokens)
+  //  prunePreserve: if true, require preserveIdx correct at EVERY node (only
+  //                 valid when every library entry preserves them) -> fast.
+  var CAP = 1500000; // node budget guard
+  function findSeq(start, lib, goalIdx, preserveIdx, maxDepth, prunePreserve) {
+    var libTok = lib.map(parse);
+    // face of a single-move entry (null for multi-move algorithms)
+    var libFace = libTok.map(function (t) { return t.length === 1 ? t[0][0] : null; });
+    function done(s) { return correct(s, goalIdx) && correct(s, preserveIdx); }
+    if (done(start)) return [];
+    var visited = {}; visited[start.join('')] = 1;
+    var queue = [{ s: start, m: [], d: 0, lf: null }], head = 0;
+    while (head < queue.length) {
+      var node = queue[head++];
+      if (node.d >= maxDepth) continue;
+      for (var li = 0; li < libTok.length; li++) {
+        // same-face pruning, only between two single-move entries (safe: a
+        // shortest solution never has two consecutive same-face turns).
+        if (libFace[li] && node.lf && libFace[li] === node.lf) continue;
+        var ns = applyTokens(node.s, libTok[li]);
+        if (prunePreserve && !correct(ns, preserveIdx)) continue;
+        var key = ns.join('');
+        if (visited[key]) continue;
+        visited[key] = 1;
+        var nm = node.m.concat(libTok[li]);
+        if (correct(ns, goalIdx) && correct(ns, preserveIdx)) return nm;
+        if (head + queue.length < CAP) {
+          queue.push({ s: ns, m: nm, d: node.d + 1, lf: libFace[li] });
+        }
+      }
+    }
+    return null;
+  }
+
+  // Collapse a token list: combine consecutive same-face turns, drop no-ops.
+  function simplify(tokens) {
+    var amt = { '': 1, "'": 3, '2': 2 };
+    var sufOf = [null, '', '2', "'"];
+    var out = tokens.slice();
+    var changed = true;
+    while (changed) {
+      changed = false;
+      var res = [];
+      for (var i = 0; i < out.length; i++) {
+        if (res.length) {
+          var prev = res[res.length - 1];
+          if (prev[0] === out[i][0]) {
+            var tot = (amt[prev.slice(1)] + amt[out[i].slice(1)]) % 4;
+            res.pop();
+            if (tot !== 0) res.push(out[i][0] + sufOf[tot]);
+            changed = true;
+            continue;
+          }
+        }
+        res.push(out[i]);
+      }
+      out = res;
+    }
+    return out;
+  }
+
+  // ---- the staged plan ---------------------------------------------------
+  function buildPlan() {
+    var plan = [];
+    var acc = [];
+    // 1) bottom cross, one edge at a time
+    ['F', 'R', 'B', 'L'].forEach(function (side) {
+      var g = CROSS[side];
+      plan.push({ name: 'Bottom cross: ' + side + ' edge', lib: LIB_CROSS,
+                  goal: g, preserve: acc.slice(), depth: 7, prune: false });
+      acc = acc.concat(g);
+    });
+    // 2) bottom corners
+    ['DRF', 'DRB', 'DBL', 'DLF'].forEach(function (c) {
+      var g = FL_CORNERS[c];
+      plan.push({ name: 'Bottom corner: ' + c, lib: LIB_CORNER,
+                  goal: g, preserve: acc.slice(), depth: 8, prune: false });
+      acc = acc.concat(g);
+    });
+    // 3) middle edges (first layer fully solved now -> can prune)
+    var firstLayer = acc.slice();
+    ['FR', 'RB', 'BL', 'LF'].forEach(function (m) {
+      var g = MID[m];
+      plan.push({ name: 'Middle edge: ' + m, lib: LIB_MID,
+                  goal: g, preserve: firstLayer.concat(midSoFar(m)), depth: 5, prune: true });
+    });
+    function midSoFar(upTo) {
+      var order = ['FR', 'RB', 'BL', 'LF'], r = [];
+      for (var i = 0; i < order.length && order[i] !== upTo; i++) r = r.concat(MID[order[i]]);
+      return r;
+    }
+    // 4) last layer
+    plan.push({ name: 'Top cross (orient edges)', lib: LIB_EO,
+                goal: U_EDGES, preserve: F2L_IDX, depth: 4, prune: true });
+    plan.push({ name: 'Orient last layer (top face)', lib: LIB_CO,
+                goal: U_FACE, preserve: F2L_IDX.concat(U_EDGES), depth: 8, prune: true });
+    plan.push({ name: 'Position top corners', lib: LIB_CP,
+                goal: U_CORNER_SIDES, preserve: F2L_IDX.concat(U_FACE), depth: 6, prune: true });
+    plan.push({ name: 'Position top edges', lib: LIB_EP,
+                goal: ALL_IDX, preserve: F2L_IDX.concat(U_FACE), depth: 6, prune: true });
+    return plan;
+  }
+  var PLAN = buildPlan();
+
+  function solve(state) {
+    var s = state.slice();
+    var stages = [];
+    for (var i = 0; i < PLAN.length; i++) {
+      var st = PLAN[i];
+      var seq = findSeq(s, st.lib, st.goal, st.preserve, st.depth, st.prune);
+      if (seq === null) {
+        throw new Error('Solver stuck at stage: ' + st.name);
+      }
+      s = applyTokens(s, seq);
+      stages.push({ name: st.name, moves: simplify(seq) });
+    }
+    // overall move list
+    var all = [];
+    stages.forEach(function (st) { all = all.concat(st.moves); });
+    return { moves: simplify(all), stages: stages, solved: E.isSolved(s) };
+  }
+
+  return { solve: solve, simplify: simplify, PLAN: PLAN };
+});
+</script>
+<script>
+/* ===== kociemba.js ===== */
+// kociemba.js -- near-optimal two-phase solver (Kociemba's algorithm).
+// Built on the verified facelet engine; produces ~20-move solutions.
+// Works in Node (module.exports) and the browser (window.Kociemba).
+//
+// Phase 1: reduce to the group G1 = <U,D,R2,L2,F2,B2> (all edges oriented,
+//          all corners oriented, the 4 middle-slice edges in the slice).
+// Phase 2: solve within G1.
+// Each phase is an IDA* search guided by BFS pruning tables.
+
+(function (root, factory) {
+  var E = (typeof require !== 'undefined') ? require('./cube-engine.js') : root.CubeEngine;
+  if (typeof module !== 'undefined' && module.exports) module.exports = factory(E);
+  else root.Kociemba = factory(E);
+})(typeof self !== 'undefined' ? self : this, function (E) {
+  'use strict';
+  var pos = E.pos, nor = E.nor;
+
+  // ---------- cubie model (derived from facelet geometry) ----------
+  var byPos = {};
+  for (var i = 0; i < 54; i++) { var k = pos[i].join(','); (byPos[k] = byPos[k] || []).push(i); }
+  var cornerGroups = [], edgeGroups = [];
+  Object.keys(byPos).forEach(function (k) {
+    var g = byPos[k]; if (g.length === 3) cornerGroups.push(g); else if (g.length === 2) edgeGroups.push(g);
+  });
+  function faceOf(idx) { return Math.floor(idx / 9); }
+
+  // corner slots: [axis(U/D), then clockwise]
+  var CS = cornerGroups.map(function (g) {
+    var axis = g.filter(function (i) { return faceOf(i) === 0 || faceOf(i) === 3; })[0];
+    var sx = g.filter(function (i) { return i !== axis && nor[i][0] !== 0; })[0];
+    var sz = g.filter(function (i) { return i !== axis && nor[i][2] !== 0; })[0];
+    var p = pos[axis];
+    return (p[0] * p[1] * p[2]) > 0 ? [axis, sx, sz] : [axis, sz, sx];
+  });
+  // edge slots: [ref(U/D else F/B), other]; mark slice edges (no U/D sticker)
+  var isSlice = [];
+  var ES = edgeGroups.map(function (g, idx) {
+    var ref = g.filter(function (i) { return faceOf(i) === 0 || faceOf(i) === 3; })[0];
+    var slice = (ref === undefined);
+    if (slice) ref = g.filter(function (i) { return faceOf(i) === 2 || faceOf(i) === 5; })[0];
+    isSlice[idx] = slice;
+    return [ref, g.filter(function (i) { return i !== ref; })[0]];
+  });
+
+  // colour set -> home index lookups
+  function colsKey(arr) { return arr.slice().sort(function (a, b) { return a - b; }).join(','); }
+  var cHome = {}, eHome = {};
+  CS.forEach(function (s, idx) { cHome[colsKey(s.map(faceOf))] = idx; });
+  ES.forEach(function (s, idx) { eHome[colsKey(s.map(faceOf))] = idx; });
+
+  // read cubie (perm/ori) from a facelet state
+  function readCubie(state) {
+    var cp = [], co = [], ep = [], eo = [];
+    for (var s = 0; s < 8; s++) {
+      var sl = CS[s];
+      cp[s] = cHome[colsKey([state[sl[0]], state[sl[1]], state[sl[2]]])];
+      var ap = 0; for (var p = 0; p < 3; p++) { var c = state[sl[p]]; if (c === 0 || c === 3) { ap = p; break; } }
+      co[s] = ap;
+    }
+    for (var s2 = 0; s2 < 12; s2++) {
+      var el = ES[s2];
+      ep[s2] = eHome[colsKey([state[el[0]], state[el[1]]])];
+      // ref colour belongs to the home cubie's ref face
+      var refFace = faceOf(ES[ep[s2]][0]);
+      eo[s2] = (state[el[0]] === refFace) ? 0 : 1;
+    }
+    return { cp: cp, co: co, ep: ep, eo: eo };
+  }
+
+  // ---------- moves at cubie level ----------
+  var NAMES = ["U", "U2", "U'", "R", "R2", "R'", "F", "F2", "F'",
+               "D", "D2", "D'", "L", "L2", "L'", "B", "B2", "B'"];
+  var PHASE2 = ["U", "U2", "U'", "D", "D2", "D'", "R2", "L2", "F2", "B2"];
+  var P2IDX = PHASE2.map(function (n) { return NAMES.indexOf(n); });
+  var MOVE = NAMES.map(function (n) {
+    var st = E.applySeq(E.solvedState(), n);
+    var c = readCubie(st);
+    return { cp: c.cp, co: c.co, ep: c.ep, eo: c.eo, name: n, face: n[0] };
+  });
+
+  // apply a move (by index) to a cubie state -> new cubie state
+  function applyMove(s, mi) {
+    var m = MOVE[mi];
+    var cp = new Array(8), co = new Array(8), ep = new Array(12), eo = new Array(12);
+    for (var i = 0; i < 8; i++) { cp[i] = s.cp[m.cp[i]]; co[i] = (s.co[m.cp[i]] + m.co[i]) % 3; }
+    for (var j = 0; j < 12; j++) { ep[j] = s.ep[m.ep[j]]; eo[j] = (s.eo[m.ep[j]] + m.eo[j]) % 2; }
+    return { cp: cp, co: co, ep: ep, eo: eo };
+  }
+
+  // ---------- coordinate encode/decode ----------
+  function C(n, k) { if (k < 0 || k > n) return 0; var r = 1; for (var i = 0; i < k; i++) r = r * (n - i) / (i + 1); return Math.round(r); }
+
+  function twistCoord(co) { var t = 0; for (var i = 0; i < 7; i++) t = t * 3 + co[i]; return t; }
+  function flipCoord(eo) { var f = 0; for (var i = 0; i < 11; i++) f = f * 2 + eo[i]; return f; }
+  // slice: which 4 of 12 slots hold slice cubies
+  function sliceCoord(ep) {
+    var occ = []; for (var s = 0; s < 12; s++) if (isSlice[ep[s]]) occ.push(s);
+    var idx = 0; for (var n = 0; n < 4; n++) idx += C(occ[n], n + 1); return idx;
+  }
+  var SLICE_SOLVED = (function () { var occ = []; for (var s = 0; s < 12; s++) if (isSlice[s]) occ.push(s); var idx = 0; for (var n = 0; n < 4; n++) idx += C(occ[n], n + 1); return idx; })();
+
+  // permutation index (Lehmer)
+  function permIndex(p) { var n = p.length, idx = 0; for (var i = 0; i < n; i++) { idx *= (n - i); for (var j = i + 1; j < n; j++) if (p[j] < p[i]) idx++; } return idx; }
+  function indexPerm(idx, n) { var p = new Array(n), avail = []; for (var i = 0; i < n; i++) avail.push(i); var d = new Array(n); for (var i2 = n - 1; i2 >= 0; i2--) { var r = n - i2; d[i2] = idx % r; idx = Math.floor(idx / r); } for (var i3 = 0; i3 < n; i3++) p[i3] = avail.splice(d[i3], 1)[0]; return p; }
+
+  // phase-2 slot orderings
+  var NS = [], SL = [];               // non-slice / slice slot indices
+  for (var s = 0; s < 12; s++) (isSlice[s] ? SL : NS).push(s);
+  var nsIdxOfHome = {}, slIdxOfHome = {};
+  NS.forEach(function (slot, i) { nsIdxOfHome[slot] = i; });
+  SL.forEach(function (slot, i) { slIdxOfHome[slot] = i; });
+
+  function cornerPermCoord(cp) { return permIndex(cp); }
+  function edge8Coord(ep) { var p = NS.map(function (slot) { return nsIdxOfHome[ep[slot]]; }); return permIndex(p); }
+  function slicePermCoord(ep) { var p = SL.map(function (slot) { return slIdxOfHome[ep[slot]]; }); return permIndex(p); }
+
+  // ---------- coordinate move tables (for building pruning tables) ----------
+  var N_TWIST = 2187, N_FLIP = 2048, N_SLICE = 495, N_CP = 40320, N_E8 = 40320, N_SP = 24;
+
+  function twistMoveTable() {
+    var T = new Int16Array(N_TWIST * 18);
+    for (var c = 0; c < N_TWIST; c++) {
+      var o = new Array(8), t = c; for (var i = 6; i >= 0; i--) { o[i] = t % 3; t = (t - o[i]) / 3; }
+      o[7] = ((3 - (o[0] + o[1] + o[2] + o[3] + o[4] + o[5] + o[6]) % 3) % 3);
+      for (var mi = 0; mi < 18; mi++) { var m = MOVE[mi], no = new Array(8); for (var s = 0; s < 8; s++) no[s] = (o[m.cp[s]] + m.co[s]) % 3; T[c * 18 + mi] = twistCoord(no); }
+    } return T;
+  }
+  function flipMoveTable() {
+    var T = new Int16Array(N_FLIP * 18);
+    for (var c = 0; c < N_FLIP; c++) {
+      var o = new Array(12), t = c; for (var i = 10; i >= 0; i--) { o[i] = t % 2; t = (t - o[i]) / 2; }
+      o[11] = (o[0] ^ o[1] ^ o[2] ^ o[3] ^ o[4] ^ o[5] ^ o[6] ^ o[7] ^ o[8] ^ o[9] ^ o[10]);
+      for (var mi = 0; mi < 18; mi++) { var m = MOVE[mi], no = new Array(12); for (var s = 0; s < 12; s++) no[s] = (o[m.ep[s]] + m.eo[s]) % 2; T[c * 18 + mi] = flipCoord(no); }
+    } return T;
+  }
+  // slice as a set of occupied slots
+  function sliceSetToCoord(occSlots) { var idx = 0; for (var n = 0; n < 4; n++) idx += C(occSlots[n], n + 1); return idx; }
+  function sliceCoordToSet(coord) { // returns boolean[12]
+    var occ = new Array(12); for (var i = 0; i < 12; i++) occ[i] = false;
+    var x = coord, k = 4;
+    for (var i2 = 11; i2 >= 0; i2--) { if (x >= C(i2, k)) { x -= C(i2, k); occ[i2] = true; k--; if (k === 0) break; } }
+    return occ;
+  }
+  function sliceMoveTable() {
+    var T = new Int16Array(N_SLICE * 18);
+    for (var c = 0; c < N_SLICE; c++) {
+      var occ = sliceCoordToSet(c);
+      for (var mi = 0; mi < 18; mi++) {
+        var m = MOVE[mi]; var nocc = []; for (var s = 0; s < 12; s++) if (occ[m.ep[s]]) nocc.push(s);
+        T[c * 18 + mi] = sliceSetToCoord(nocc);
+      }
+    } return T;
+  }
+  // phase-2 permutation move tables (10 moves)
+  function permMoveTable(N, n, slotArr, idxOfHome) {
+    var T = new Int32Array(N * 10);
+    for (var c = 0; c < N; c++) {
+      var p = indexPerm(c, n);
+      for (var mp = 0; mp < 10; mp++) {
+        var m = MOVE[P2IDX[mp]];
+        // apply edge/corner perm restricted to slotArr
+        var np = new Array(n);
+        for (var i = 0; i < n; i++) {
+          var slot = slotArr[i];
+          var src = m.ep ? m.ep[slot] : null; // edges
+          if (slotArr === null) {} // unused
+          np[i] = p[idxOfHome[src]];
+        }
+        T[c * 10 + mp] = permIndex(np);
+      }
+    } return T;
+  }
+  function cornerPermMoveTable() {
+    var T = new Int32Array(N_CP * 10);
+    for (var c = 0; c < N_CP; c++) {
+      var p = indexPerm(c, 8);
+      for (var mp = 0; mp < 10; mp++) { var m = MOVE[P2IDX[mp]], np = new Array(8); for (var s = 0; s < 8; s++) np[s] = p[m.cp[s]]; T[c * 10 + mp] = permIndex(np); }
+    } return T;
+  }
+
+  // ---------- pruning tables (BFS in coordinate space) ----------
+  function buildPrune(sizeA, sizeB, moveA, moveB, nMoves, startA, startB, moveStride) {
+    var total = sizeA * sizeB;
+    var dist = new Uint8Array(total); for (var i = 0; i < total; i++) dist[i] = 255;
+    var start = startA * sizeB + startB;
+    dist[start] = 0;
+    var frontier = [start], depth = 0;
+    while (frontier.length) {
+      var next = [];
+      for (var f = 0; f < frontier.length; f++) {
+        var idx = frontier[f]; var a = Math.floor(idx / sizeB), b = idx % sizeB;
+        for (var mi = 0; mi < nMoves; mi++) {
+          var na = moveA[a * moveStride + mi], nb = moveB[b * moveStride + mi];
+          var ni = na * sizeB + nb;
+          if (dist[ni] === 255) { dist[ni] = depth + 1; next.push(ni); }
+        }
+      }
+      frontier = next; depth++;
+    }
+    return dist;
+  }
+
+  // ---------- build everything (lazy) ----------
+  var TBL = null;
+  function build() {
+    if (TBL) return TBL;
+    var twistMv = twistMoveTable(), flipMv = flipMoveTable(), sliceMv = sliceMoveTable();
+    var twistSlice = buildPrune(N_TWIST, N_SLICE, twistMv, sliceMv, 18, 0, SLICE_SOLVED, 18);
+    var flipSlice = buildPrune(N_FLIP, N_SLICE, flipMv, sliceMv, 18, 0, SLICE_SOLVED, 18);
+    var cpMv = cornerPermMoveTable();
+    var e8Mv = permMoveTable(N_E8, 8, NS, nsIdxOfHome);
+    var spMv = permMoveTable(N_SP, 4, SL, slIdxOfHome);
+    var cpSlice = buildPrune(N_CP, N_SP, cpMv, spMv, 10, 0, 0, 10);
+    var e8Slice = buildPrune(N_E8, N_SP, e8Mv, spMv, 10, 0, 0, 10);
+    TBL = { twistSlice: twistSlice, flipSlice: flipSlice, cpSlice: cpSlice, e8Slice: e8Slice };
+    return TBL;
+  }
+
+  // ---------- search ----------
+  function axis(face) { return face === 'U' || face === 'D' ? 0 : face === 'R' || face === 'L' ? 1 : 2; }
+
+  function solve(facelets, opts) {
+    opts = opts || {};
+    var T = build();
+    var startState = readCubie(facelets);
+    var timeBudget = opts.timeBudget || 800;
+    var startTime = (opts.now || function () { return new Date().getTime(); })();
+
+    var best = null;
+    var sol1 = [];
+    var now = (opts.now || function () { return new Date().getTime(); });
+    var deadline = startTime + timeBudget;
+    var stop = false;
+
+    function phase1(s, depth, lastFace) {
+      if (stop) return;
+      if (best && (now() > deadline)) { stop = true; return; }
+      var tw = twistCoord(s.co), fl = flipCoord(s.eo), sc = sliceCoord(s.ep);
+      var h = Math.max(T.twistSlice[tw * N_SLICE + sc], T.flipSlice[fl * N_SLICE + sc]);
+      if (h > depth) return;
+      if (tw === 0 && fl === 0 && sc === SLICE_SOLVED) {
+        // reached G1 -> run phase 2
+        tryPhase2(s, sol1.slice());
+        return;
+      }
+      if (depth === 0) return;
+      for (var mi = 0; mi < 18; mi++) {
+        var f = MOVE[mi].face;
+        if (f === lastFace) continue;
+        if (lastFace && axis(f) === axis(lastFace) && f > lastFace) continue;
+        sol1.push(mi);
+        phase1(applyMove(s, mi), depth - 1, f);
+        sol1.pop();
+        if (best && best.length <= depth) { /* allow continue to find shorter via outer loop */ }
+      }
+    }
+
+    function tryPhase2(s, p1moves) {
+      if (best && p1moves.length >= best.length) return; // can't beat
+      var maxd = best ? best.length - p1moves.length - 1 : 30;
+      var sol2 = [];
+      function p2(st, depth, lastFace) {
+        if (stop) return false;
+        var cp = cornerPermCoord(st.cp), e8 = edge8Coord(st.ep), sp = slicePermCoord(st.ep);
+        var h = Math.max(T.cpSlice[cp * N_SP + sp], T.e8Slice[e8 * N_SP + sp]);
+        if (h > depth) return false;
+        if (cp === 0 && e8 === 0 && sp === 0) {
+          best = p1moves.concat(sol2.slice());
+          return true;
+        }
+        if (depth === 0) return false;
+        for (var mp = 0; mp < 10; mp++) {
+          var mi = P2IDX[mp], f = MOVE[mi].face;
+          if (f === lastFace) continue;
+          if (lastFace && axis(f) === axis(lastFace) && f > lastFace) continue;
+          sol2.push(mi);
+          if (p2(applyMove(st, mi), depth - 1, f)) { return true; }
+          sol2.pop();
+        }
+        return false;
+      }
+      for (var d = 0; d <= maxd; d++) { sol2 = []; if (p2(s, d, null)) break; }
+    }
+
+    for (var d1 = 0; d1 <= 20; d1++) {
+      phase1(startState, d1, null);
+      if (best && best.length <= d1) break;     // optimal-enough: phase1 alone >= best
+      if (stop) break;
+      if (best && now() > deadline) break;
+    }
+    if (!best) return null;
+    return best.map(function (mi) { return MOVE[mi].name; });
+  }
+
+  return { solve: solve, build: build, _readCubie: readCubie, _MOVE: MOVE, _NAMES: NAMES };
+});
+</script>
+<script>
+/* ===== center.js ===== */
+// center.js -- picture-cube centre-orientation solver.
+// After the colours are solved, centres may still be rotated (a "picture cube"
+// has a definite up-direction per face). Each face turn rotates that face's
+// centre, so a centre's net rotation = net quarter-turns of that face (mod 4).
+// This module appends colour-neutral "supercube" generator algorithms (each
+// verified to leave the colours solved) to rotate the centres upright.
+//
+// Generators were discovered + verified offline (see center-discover.js): each
+// is [twistVector(6, per face U R F D L B, in quarter-turns CW), sequence].
+
+(function (root, factory) {
+  if (typeof module !== 'undefined' && module.exports) module.exports = factory();
+  else root.CenterSolver = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  var FACES = ['U', 'R', 'F', 'D', 'L', 'B'];
+
+  // Verified colour-neutral centre generators (face + slice moves): single
+  // and paired 90 / 180 centre rotations. Together they span all 2048
+  // reachable centre-orientation states.
+  var GENERATORS = [[[2,0,0,0,0,0],"U R L U2 R' L' U R L U2 R' L'"],[[0,0,2,0,0,0],"F R L F2 R' L' F R L F2 R' L'"],[[0,2,0,0,0,0],"R D U R2 D' U' R D U R2 D' U'"],[[0,0,0,2,0,0],"D R L D2 R' L' D R L D2 R' L'"],[[0,0,0,0,0,2],"B D U B2 D' U' B D U B2 D' U'"],[[0,0,0,0,2,0],"L D U L2 D' U' L D U L2 D' U'"],[[1,0,0,0,3,0],"U M E M' U' M E' M'"],[[3,0,0,0,1,0],"M E M' U M E' M' U'"],[[1,3,0,0,0,0],"U M E' M' U' M E M'"],[[3,1,0,0,0,0],"M E' M' U M E M' U'"],[[1,0,0,3,0,0],"U M E2 M' U' M E2 M'"],[[3,0,0,1,0,0],"M E2 M' U M E2 M' U'"],[[1,0,3,0,0,0],"U S E S' U' S E' S'"],[[3,0,1,0,0,0],"S E S' U S E' S' U'"],[[1,0,0,0,0,3],"U S E' S' U' S E S'"],[[3,0,0,0,0,1],"S E' S' U S E S' U'"],[[0,2,0,0,2,0],"U2 R2 U2 S2 U2 R2 U2 S2"],[[0,0,0,2,2,0],"U2 R2 D2 S D2 R2 U2 S'"],[[2,0,0,0,2,0],"U2 R2 D2 S' D2 R2 U2 S"],[[0,2,0,2,0,0],"U2 R2 S R2 U2 L2 S' L2"],[[2,0,0,2,0,0],"U2 R2 S2 R2 U2 R2 S2 R2"],[[0,0,2,0,0,2],"U2 F2 U2 M2 U2 F2 U2 M2"],[[0,0,0,2,0,2],"U2 F2 D2 M D2 F2 U2 M'"],[[2,0,0,0,0,2],"U2 F2 D2 M' D2 F2 U2 M"],[[0,0,2,2,0,0],"U2 F2 M F2 U2 B2 M' B2"],[[2,2,0,0,0,0],"U2 L2 D2 S D2 L2 U2 S'"],[[2,0,2,0,0,0],"U2 B2 D2 M D2 B2 U2 M'"],[[2,0,2,2,0,2],"U2 M U2 S2 D2 M D2 S2"],[[2,2,0,2,2,0],"U2 M2 D2 S D2 M2 U2 S"],[[0,1,0,3,0,0],"R E M E' R' E M' E'"],[[0,3,0,1,0,0],"E M E' R E M' E' R'"],[[0,1,0,0,3,0],"R E M2 E' R' E M2 E'"],[[0,3,0,0,1,0],"E M2 E' R E M2 E' R'"],[[0,1,3,0,0,0],"R S M S' R' S M' S'"],[[0,3,1,0,0,0],"S M S' R S M' S' R'"],[[0,1,0,0,0,3],"R S M' S' R' S M S'"],[[0,3,0,0,0,1],"S M' S' R S M S' R'"],[[0,2,0,0,0,2],"R2 F2 L2 E L2 F2 R2 E'"],[[0,0,0,0,2,2],"R2 F2 L2 E' L2 F2 R2 E"],[[0,0,2,0,2,0],"R2 F2 E' F2 R2 B2 E B2"],[[0,2,2,0,0,0],"R2 B2 L2 E' L2 B2 R2 E"],[[0,2,2,0,2,2],"R2 E R2 S2 L2 E L2 S2"],[[0,0,1,0,3,0],"F M S' M' F' M S M'"],[[0,0,3,0,1,0],"M S' M' F M S M' F'"],[[0,0,1,0,0,3],"F M S2 M' F' M S2 M'"],[[0,0,3,0,0,1],"M S2 M' F M S2 M' F'"],[[0,0,1,3,0,0],"F E S' E' F' E S E'"],[[0,0,3,1,0,0],"E S' E' F E S E' F'"],[[0,0,0,1,3,0],"D M E' M' D' M E M'"],[[0,0,0,3,1,0],"M E' M' D M E M' D'"],[[0,0,0,1,0,3],"D S E S' D' S E' S'"],[[0,0,0,3,0,1],"S E S' D S E' S' D'"],[[0,0,0,0,1,3],"L S M S' L' S M' S'"],[[0,0,0,0,3,1],"S M S' L S M' S' L'"],[[0,1,3,0,3,1],"M E M E' M' S M' S'"],[[0,3,1,0,1,3],"S M S' M E M' E' M'"],[[1,2,1,3,2,3],"E M S M2 E' M S'"],[[1,0,3,3,0,1],"M E M S M' S' M' E'"],[[3,2,3,1,2,1],"S M' E M2 S' M' E'"],[[3,0,1,1,0,3],"E M S M S' M' E' M'"],[[3,3,0,1,1,0],"M E M' E S E' S' E'"],[[1,1,0,3,3,0],"E S E S' E' M E' M'"],[[0,1,1,0,3,3],"M E M' E' M' S M S'"],[[0,3,3,0,1,1],"S M' S' M E M E' M'"],[[3,2,1,1,2,3],"S M' E S' M' E' M2"],[[1,2,3,3,2,1],"M2 E M S E' M S'"],[[2,1,1,2,3,3],"M E M2 S M E' S'"],[[2,3,3,2,1,1],"S E M' S' M2 E' M'"],[[2,1,3,2,3,1],"M E' M2 S' M E S"],[[2,3,1,2,1,3],"S' E' M' S M2 E M'"],[[3,1,0,1,3,0],"M E' M' E S E S' E'"],[[1,3,0,3,1,0],"E S E' S' E' M E M'"],[[1,1,2,3,3,2],"M' E2 S E M S' E"],[[3,3,2,1,1,2],"E' S M' E' S' E2 M"],[[3,1,2,1,3,2],"M' E2 S' E' M S E'"],[[1,3,2,3,1,2],"E S' M' E S E2 M"],[[3,0,3,1,0,1],"M S M E' M' E M' S'"],[[1,0,1,3,0,3],"E' M' S M' S' M E M"]];
+
+  function enc(v) { return ((((v[0] * 4 + v[1]) * 4 + v[2]) * 4 + v[3]) * 4 + v[4]) * 4 + v[5]; }
+  function dec(e) { var v = []; for (var i = 5; i >= 0; i--) { v[i] = e % 4; e = (e - v[i]) / 4; } return v; }
+
+  // Dijkstra from origin over the Cayley graph (4096 states), edges = generators
+  // weighted by sequence length. Precomputed once.
+  var DIST = null, PREDG = null, PREDS = null;
+  function build() {
+    if (DIST) return;
+    var N = 4096;
+    DIST = new Int32Array(N); PREDG = new Int16Array(N); PREDS = new Int32Array(N);
+    for (var i = 0; i < N; i++) { DIST[i] = 1e9; PREDG[i] = -1; PREDS[i] = -1; }
+    var glen = GENERATORS.map(function (g) { return g[1].trim().split(/\s+/).length; });
+    var gtw = GENERATORS.map(function (g) { return g[0]; });
+    var start = enc([0, 0, 0, 0, 0, 0]);
+    DIST[start] = 0;
+    // simple Dijkstra (small graph)
+    var done = new Uint8Array(N);
+    for (var k = 0; k < N; k++) {
+      var u = -1, best = 1e9;
+      for (var s = 0; s < N; s++) if (!done[s] && DIST[s] < best) { best = DIST[s]; u = s; }
+      if (u < 0) break;
+      done[u] = 1;
+      var uv = dec(u);
+      for (var g = 0; g < GENERATORS.length; g++) {
+        var tw = gtw[g];
+        var nv = [(uv[0] + tw[0]) % 4, (uv[1] + tw[1]) % 4, (uv[2] + tw[2]) % 4,
+                  (uv[3] + tw[3]) % 4, (uv[4] + tw[4]) % 4, (uv[5] + tw[5]) % 4];
+        var ne = enc(nv), nd = DIST[u] + glen[g];
+        if (nd < DIST[ne]) { DIST[ne] = nd; PREDG[ne] = g; PREDS[ne] = u; }
+      }
+    }
+  }
+
+  // residual: per-face current centre orientation that we want to drive to 0.
+  // residual is an object {U,R,F,D,L,B} (0..3). Returns {moves:[], gens:[seqStrings]}.
+  function solve(residual) {
+    build();
+    // we need a sequence with twist V = -residual (so residual + V = 0)
+    var V = FACES.map(function (f) { return (4 - (residual[f] % 4)) % 4; });
+    var target = enc(V);
+    if (DIST[target] >= 1e9) return null; // unreachable (shouldn't happen)
+    var path = [];
+    var cur = target;
+    while (cur !== enc([0, 0, 0, 0, 0, 0])) {
+      var g = PREDG[cur];
+      if (g < 0) return null;
+      path.push(g);
+      cur = PREDS[cur];
+    }
+    path.reverse();
+    var gens = path.map(function (gi) { return GENERATORS[gi][1]; });
+    var moves = [];
+    gens.forEach(function (seq) { seq.trim().split(/\s+/).forEach(function (m) { moves.push(m); }); });
+    return { moves: moves, gens: gens };
+  }
+
+  return { solve: solve, build: build, GENERATORS: GENERATORS };
+});
+</script>
+<script>
+(function(){
+  var E = window.CubeEngine, S = window.CubeSolver;
+  var FACES = ['U','R','F','D','L','B'];
+  var COLORS = { U:'var(--U)', R:'var(--R)', F:'var(--F)', D:'var(--D)', L:'var(--L)', B:'var(--B)' };
+  var COLOR_NAME = { U:'White', R:'Red', F:'Green', D:'Yellow', L:'Orange', B:'Blue' };
+  var DEFAULT_COLORS = { U:COLORS.U, R:COLORS.R, F:COLORS.F, D:COLORS.D, L:COLORS.L, B:COLORS.B };
+  var flagged = {}, scanData = null;  // low-confidence stickers + per-sticker scan info
+
+  // entered colours: array[54] of face-letter (the colour). Centres fixed.
+  var colors = [];
+  for (var f=0; f<6; f++) for (var i=0; i<9; i++) colors[f*9+i] = FACES[f];
+  var centerOrient = {U:0,R:0,F:0,D:0,L:0,B:0}; // picture rotation 0..3 (x90 CW)
+  var selected = 'U';
+
+  // ---- palette ----
+  var palette = document.getElementById('palette');
+  FACES.forEach(function(f){
+    var sw = document.createElement('div');
+    sw.className = 'sw' + (f===selected?' sel':'');
+    sw.style.background = COLORS[f];
+    sw.title = COLOR_NAME[f];
+    sw.onclick = function(){ selected=f; render(); };
+    sw.dataset.f = f;
+    palette.appendChild(sw);
+  });
+
+  // ---- build net ----
+  var net = document.getElementById('net');
+  var cellEls = {}; // global index -> element
+  FACES.forEach(function(f){
+    var fb = {U:0,R:9,F:18,D:27,L:36,B:45}[f];
+    var faceDiv = document.createElement('div');
+    faceDiv.className = 'face f'+f;
+    for (var i=0;i<9;i++){
+      var idx = fb+i;
+      var c = document.createElement('div');
+      c.className = 'cell' + (i===4?' center':'');
+      c.dataset.idx = idx;
+      if (i===4){
+        // ref = fixed marker for the upright/correct side; arrow = current picture
+        // orientation; deg = how far the picture is rotated from upright.
+        c.innerHTML = '<div class="ref"></div><div class="arrow">▲</div><div class="degBadge"></div>';
+        (function(f){ c.onclick = function(){ centerOrient[f] = (centerOrient[f]+1)%4; render(); }; })(f);
+      }
+      cellEls[idx] = c;
+      faceDiv.appendChild(c);
+    }
+    net.appendChild(faceDiv);
+  });
+
+  // hold-and-drag painting (mouse + touch) on non-centre stickers
+  var painting = false;
+  function paintAt(el){
+    if (!el || !el.classList || !el.classList.contains('cell') || el.classList.contains('center')) return;
+    var idx = +el.dataset.idx, changed = false;
+    if (colors[idx] !== selected){ colors[idx] = selected; changed = true; }
+    if (flagged[idx]){ delete flagged[idx]; changed = true; } // reviewing clears the flag
+    if (changed) render();
+  }
+  net.addEventListener('pointerdown', function(e){
+    var cell = e.target.closest ? e.target.closest('.cell') : null;
+    if (!cell || cell.classList.contains('center')) return;
+    e.preventDefault();
+    if (cell.releasePointerCapture && e.pointerId != null){ try { cell.releasePointerCapture(e.pointerId); } catch(_){} }
+    painting = true;
+    paintAt(cell);
+  });
+  net.addEventListener('pointermove', function(e){
+    if (!painting) return;
+    paintAt(document.elementFromPoint(e.clientX, e.clientY));
+  });
+  window.addEventListener('pointerup', function(){ painting = false; });
+  window.addEventListener('pointercancel', function(){ painting = false; });
+
+  // ---- view state for stepping ----
+  var mode = 'edit';        // 'edit' | 'solve'
+  var solution = null;      // {moves, stages}
+  var flatMoves = [];       // [{m, stageIdx}]
+  var stepPtr = 0;          // moves applied so far
+  var viewState = null;     // engine state shown while stepping
+
+  function cssColorFor(faceIndex){ // faceIndex 0..5 -> css var
+    return COLORS[FACES[faceIndex]];
+  }
+
+  function render(){
+    // palette selection
+    Array.prototype.forEach.call(palette.children,function(sw){
+      sw.className='sw'+(sw.dataset.f===selected?' sel':'');
+    });
+    var sc=document.getElementById('selColor');
+    if (sc) sc.innerHTML = 'Now painting: <b>'+COLOR_NAME[selected]+'</b>';
+    if (mode==='edit'){
+      for (var i=0;i<54;i++){
+        cellEls[i].style.background = COLORS[colors[i]];
+        cellEls[i].classList.toggle('flag', !!flagged[i]);
+      }
+    } else {
+      for (var j=0;j<54;j++){
+        cellEls[j].style.background = cssColorFor(viewState[j]);
+      }
+    }
+    // centre arrows + degrees-off badge (only meaningful in edit mode)
+    FACES.forEach(function(f){
+      var fb={U:0,R:9,F:18,D:27,L:36,B:45}[f];
+      var ce = cellEls[fb+4];
+      var ar = ce.querySelector('.arrow');
+      var deg = ce.querySelector('.degBadge');
+      var o = centerOrient[f] % 4;
+      if (ar) ar.style.transform = 'translate(-50%,-50%) rotate('+(o*90)+'deg)';
+      if (deg){
+        deg.textContent = (o===0) ? '0°' : (o*90)+'°';
+        deg.className = 'degBadge' + (o===0 ? ' ok' : '');
+      }
+    });
+  }
+
+  // ---------- 3D cube view ----------
+  var S3 = 52;
+  var cube3dEl = document.getElementById('cube3d');
+  var sceneEl = document.getElementById('scene');
+  var turnLabel = document.getElementById('turnLabel');
+  var arrow3d = document.getElementById('arrow3d');
+  var cubies = [], cube3dBuilt = false, animating = false, animTimer = null;
+  var viewX = -26, viewY = -36;
+  var FACE_WORD = { U:'Up', D:'Down', R:'Right', L:'Left', F:'Front', B:'Back',
+                    M:'Middle slice', E:'Equator slice', S:'Standing slice' };
+  var IS_SLICE = { M:1, E:1, S:1 };
+  var DIRS = ['x+','x-','y+','y-','z+','z-'];
+  var FACE_T = {
+    'z+':'translateZ('+(S3/2)+'px)', 'z-':'rotateY(180deg) translateZ('+(S3/2)+'px)',
+    'x+':'rotateY(90deg) translateZ('+(S3/2)+'px)', 'x-':'rotateY(-90deg) translateZ('+(S3/2)+'px)',
+    'y+':'rotateX(90deg) translateZ('+(S3/2)+'px)', 'y-':'rotateX(-90deg) translateZ('+(S3/2)+'px)'
+  };
+  var ROT = { U:['Y',-90], D:['Y',90], R:['X',90], L:['X',-90], F:['Z',90], B:['Z',-90],
+              M:['X',-90], E:['Y',90], S:['Z',90] };
+  function dirKey(n){ if(n[0]) return n[0]>0?'x+':'x-'; if(n[1]) return n[1]>0?'y+':'y-'; return n[2]>0?'z+':'z-'; }
+
+  // ---- picture-orientation arrows (centres + edges) ----
+  // Every sticker has a picture "up" direction. We track an up-vector per
+  // facelet POSITION; a move permutes + rotates them (same permutation the
+  // engine uses for colours). Arrows are drawn on centre and edge stickers so
+  // you can watch the picture rotate into alignment.
+  var faceArrowEls = [];   // {idx, el, face}
+  var GEOM3 = {U:['y',1,-1],D:['y',-1,1],R:['x',1,-1],L:['x',-1,1],F:['z',1,-1],B:['z',-1,1],M:['x',0,1],E:['y',0,1],S:['z',0,-1]};
+  var UP3 = {U:[0,0,-1],R:[0,1,0],F:[0,1,0],D:[0,0,1],L:[0,1,0],B:[0,1,0]};
+  // facelet plane axes in cube-local CSS coords (x right, y down, z toward viewer)
+  var RIGHT3 = {U:[1,0,0],D:[1,0,0],R:[0,0,-1],L:[0,0,1],F:[1,0,0],B:[-1,0,0]};
+  var FUP3   = {U:[0,0,-1],D:[0,0,1],R:[0,-1,0],L:[0,-1,0],F:[0,-1,0],B:[0,-1,0]};
+  function rot3(v,a,s){ var x=v[0],y=v[1],z=v[2]; if(a==='x')return[x,-s*z,s*y]; if(a==='y')return[s*z,y,-s*x]; return[-s*y,s*x,z]; }
+  function dot3(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+  function invMove(m){ return (m.length===2&&m[1]==='2') ? m : (m.length===2 ? m[0] : m+"'"); }
+  var faceUp=null;
+  function initFaceUp(moves){
+    faceUp=new Array(54);
+    for(var i=0;i<54;i++) faceUp[i]=UP3[FACES[Math.floor(i/9)]].slice();
+    // start from solved-up, run the solution backwards to reach the current state
+    (moves||[]).slice().reverse().map(invMove).forEach(applyFaceUpMove);
+  }
+  function applyFaceUpMove(m){
+    if(!faceUp) return;
+    var P=E.MOVES[m], g=GEOM3[m[0]]; if(!P||!g) return;
+    var axis=g[0], s=g[2], suf=m.slice(1); if(suf==="'") s=-s; var times=(suf==='2')?2:1;
+    var nu=new Array(54);
+    for(var i=0;i<54;i++){
+      var src=P[i];
+      if(src===i){ nu[i]=faceUp[i]; }
+      else { var v=faceUp[src]; for(var t=0;t<times;t++) v=rot3(v,axis,s); nu[i]=v; }
+    }
+    faceUp=nu;
+  }
+  function renderFaceArrows(){
+    if(!faceUp) return;
+    for(var a=0;a<faceArrowEls.length;a++){
+      var e=faceArrowEls[a], u=faceUp[e.idx], ucss=[u[0],-u[1],u[2]], f=FACES[e.face];
+      var ang=Math.atan2(dot3(ucss,RIGHT3[f]), dot3(ucss,FUP3[f]))*180/Math.PI;
+      e.el.style.transform='translate(-50%,-50%) rotate('+ang+'deg)';
+    }
+  }
+
+  function build3D(){
+    if (cube3dBuilt) return;
+    var look = {};
+    for (var i=0;i<54;i++){ var pk=E.pos[i].join(','); (look[pk]=look[pk]||{})[dirKey(E.nor[i])]=i; }
+    cube3dEl.innerHTML=''; cubies=[];
+    for (var x=-1;x<=1;x++) for (var y=-1;y<=1;y++) for (var z=-1;z<=1;z++){
+      if (x===0&&y===0&&z===0) continue;
+      var pk=[x,y,z].join(',');
+      var base='translate3d('+(x*S3)+'px,'+(-y*S3)+'px,'+(z*S3)+'px)';
+      var el=document.createElement('div'); el.className='cubie'; el.style.transform=base;
+      var faces=[];
+      DIRS.forEach(function(d){
+        var fd=document.createElement('div'); fd.className='facelet3d';
+        fd.style.width=S3+'px'; fd.style.height=S3+'px'; fd.style.left=(-S3/2)+'px'; fd.style.top=(-S3/2)+'px';
+        fd.style.transform=FACE_T[d];
+        var fi = look[pk] ? look[pk][d] : undefined;
+        if (fi!==undefined){
+          fd.classList.add('outer'); faces.push({ el:fd, idx:fi });
+          var zeros=(x===0?1:0)+(y===0?1:0)+(z===0?1:0);
+          if (zeros>=1){ // centre (2 zeros) or edge (1 zero) sticker
+            var mk=document.createElement('div'); mk.className='ctrMark'+(zeros===2?'':' edge');
+            mk.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 4.5 L12 19 M12 4.5 L7.6 10.6 M12 4.5 L16.4 10.6" fill="none" stroke="#161616" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            fd.appendChild(mk); faceArrowEls.push({ idx:fi, el:mk, face:Math.floor(fi/9) });
+          }
+        }
+        else { fd.style.background='#13161c'; }
+        el.appendChild(fd);
+      });
+      cube3dEl.appendChild(el);
+      cubies.push({ el:el, base:base, x:x, y:y, z:z, faces:faces });
+    }
+    cube3dBuilt=true;
+    arrow3d.style.left='50%'; arrow3d.style.top='42%'; arrow3d.style.transform='translate(-50%,-50%)';
+    applyView();
+  }
+  function applyView(){ cube3dEl.style.transform='rotateX('+viewX+'deg) rotateY('+viewY+'deg)'; }
+  function render3D(state){
+    cubies.forEach(function(c){ c.faces.forEach(function(f){ f.el.style.background=COLORS[FACES[state[f.idx]]]; }); });
+  }
+  function inLayer(c, face){
+    switch(face){
+      case 'U': return c.y===1;  case 'D': return c.y===-1;
+      case 'R': return c.x===1;  case 'L': return c.x===-1;
+      case 'F': return c.z===1;  case 'B': return c.z===-1;
+      case 'M': return c.x===0;  case 'E': return c.y===0;  case 'S': return c.z===0;
+    }
+    return false;
+  }
+  function showTurnLabel(move){
+    var f=move[0], k=move.slice(1);
+    var sym = k===''?'↻' : k==="'"?'↺' : '180°';
+    var word = k===''?'clockwise' : k==="'"?'counter-clockwise' : 'half turn';
+    turnLabel.innerHTML = move + ' <span style="font-size:32px">'+sym+'</span>' +
+      '<small>'+FACE_WORD[f]+(IS_SLICE[f]?'':' face')+', '+word+'</small>';
+    arrow3d.textContent = (k==="'")?'↺':'↻'; arrow3d.style.opacity='0.85';
+  }
+  function hideTurnLabel(){ turnLabel.innerHTML=''; arrow3d.style.opacity='0'; }
+
+  // animate one move on the 3D cube, then bake it into viewState. calls done().
+  // a double turn (X2) is shown as two separate 90° turns, not a single 180°.
+  var ANIM_MS = 420;
+  function animateTurn(move, done){
+    if (animating) return;
+    animating=true;
+    var face=move[0], kind=move.slice(1);
+    var info=ROT[face]; // [axisLetter, baseAngle]
+    showTurnLabel(move);
+    // animate a single 90° rotation, then bake `bakeMove` into the state.
+    function quarter(angleDeg, bakeMove, cb){
+      var rs='rotate'+info[0]+'('+angleDeg+'deg)';
+      var layer=cubies.filter(function(c){ return inLayer(c, face); });
+      layer.forEach(function(c){ c.el.classList.add('hl'); c.el.style.transition='transform '+(ANIM_MS/1000)+'s cubic-bezier(.45,.05,.25,1)'; c.el.style.transform=rs+' '+c.base; });
+      animTimer=setTimeout(function(){
+        animTimer=null;
+        viewState=E.applySeq(viewState,[bakeMove]);
+        applyFaceUpMove(bakeMove);
+        layer.forEach(function(c){ c.el.style.transition='none'; c.el.style.transform=c.base; c.el.classList.remove('hl'); });
+        render3D(viewState); renderFaceArrows();
+        void cube3dEl.offsetWidth; // commit base transform so the next turn animates cleanly
+        cb();
+      }, ANIM_MS);
+    }
+    function finish(){ hideTurnLabel(); animating=false; if (done) done(); }
+    if (kind === '2'){
+      // two 90° turns in the same (clockwise) direction, with a small beat between
+      quarter(info[1], face, function(){ setTimeout(function(){ quarter(info[1], face, finish); }, 110); });
+    } else if (kind === "'"){
+      quarter(-info[1], move, finish);
+    } else {
+      quarter(info[1], move, finish);
+    }
+  }
+
+  // drag to rotate the view
+  (function(){
+    var dragging=false, lx=0, ly=0;
+    sceneEl.addEventListener('pointerdown', function(e){ dragging=true; lx=e.clientX; ly=e.clientY; sceneEl.setPointerCapture(e.pointerId); });
+    sceneEl.addEventListener('pointermove', function(e){ if(!dragging) return; viewY+=(e.clientX-lx)*0.5; viewX-=(e.clientY-ly)*0.5; viewX=Math.max(-85,Math.min(85,viewX)); lx=e.clientX; ly=e.clientY; applyView(); });
+    sceneEl.addEventListener('pointerup', function(){ dragging=false; });
+    sceneEl.addEventListener('pointercancel', function(){ dragging=false; });
+  })();
+
+  // map painted colours -> engine state (face indices), centres define scheme
+  function toState(){
+    var st = new Array(54);
+    for (var i=0;i<54;i++) st[i] = FACES.indexOf(colors[i]);
+    return st;
+  }
+
+  function validate(){
+    var count = {U:0,R:0,F:0,D:0,L:0,B:0};
+    for (var i=0;i<54;i++) count[colors[i]]++;
+    var bad = [];
+    FACES.forEach(function(f){ if(count[f]!==9) bad.push(COLOR_NAME[f]+': '+count[f]); });
+    if (bad.length) return 'Each colour must appear exactly 9 times. ('+bad.join(', ')+')';
+    return null;
+  }
+
+  // net twist of the solution per face (each clockwise turn rotates that centre +1)
+  function solutionTwist(moves){
+    var t = {U:0,R:0,F:0,D:0,L:0,B:0};
+    moves.forEach(function(m){
+      var f=m[0], amt = m.length===1?1 : (m[1]==="'"?3 : 2);
+      t[f] = (t[f]+amt)%4;
+    });
+    return t;
+  }
+
+  var msg = document.getElementById('msg');
+  function showMsg(text, kind){ msg.textContent=text; msg.className='msg show '+kind; }
+  function hideMsg(){ msg.className='msg'; }
+
+  // ---- solve ----
+  var K = window.Kociemba;
+  document.getElementById('solveBtn').onclick = function(){
+    hideMsg();
+    var v = validate();
+    if (v){ showMsg(v,'err'); return; }
+    var state = toState();
+    var btn = document.getElementById('solveBtn');
+    btn.innerHTML = '<span class="spinner"></span>Solving…'; btn.disabled = true;
+    // let the button repaint before the (one-time) table build + search
+    setTimeout(function(){
+      var moves = null, err = null;
+      try { K.build(); moves = K.solve(state, { timeBudget: 1200 }); }
+      catch(e){ err = e; }
+      btn.innerHTML = '✦ Solve'; btn.disabled = false;
+      if (!moves){
+        // fall back to the layer-by-layer solver
+        try { var r = S.solve(state); if (r.solved) moves = r.moves; } catch(e2){}
+      }
+      if (!moves){
+        showMsg("Couldn't solve this - the colours don't form a valid cube. Double-check the stickers.",'err');
+        return;
+      }
+      var check = E.applySeq(state, moves);
+      if (!E.isSolved(check)){
+        showMsg("Couldn't fully solve this configuration. Double-check the stickers.",'err');
+        return;
+      }
+      var stages = [];
+      if (moves.length) stages.push({ name: 'Fastest colour solution (' + moves.length + ' moves)', moves: moves });
+      // centre pictures: residual = current centre orientation + colour-solve twist
+      // (the colour solution is face-only, so solutionTwist is exact here)
+      var ct = solutionTwist(moves);
+      var residual = {}, anyOff = false;
+      FACES.forEach(function(f){ residual[f] = (centerOrient[f] + ct[f]) % 4; if (residual[f] !== 0) anyOff = true; });
+      var centerMsg;
+      if (!anyOff){
+        centerMsg = 'all centre pictures are already upright. 🎉';
+      } else {
+        var fix = null;
+        if (window.CenterSolver){ try { fix = window.CenterSolver.solve(residual); } catch(e){} }
+        if (fix && fix.moves.length){
+          stages.push({ name: 'Centre pictures (' + fix.moves.length + ' moves)', moves: fix.moves });
+          moves = moves.concat(fix.moves);
+          centerMsg = 'the centre steps rotate every picture upright. 🎉';
+        } else {
+          var lines=[];
+          FACES.forEach(function(f){ if(residual[f]){ var d=residual[f]===2?'180':(residual[f]===1?'90':'90'); lines.push('<b>'+COLOR_NAME[f]+'</b> '+d+'°'); } });
+          centerMsg = 'these centres can\'t be made upright ('+lines.join(', ')+'). That orientation isn\'t reachable on a standard cube, so double-check your centre arrows. The colours are solved.';
+        }
+      }
+      if (!moves.length){
+        // nothing to do: either fully solved, or centres unreachable
+        showMsg(anyOff
+          ? 'The colours are solved, but those centre orientations can\'t be reached on a standard cube. Double-check the centre arrows.'
+          : 'Already solved. Colours and centre pictures are all correct. 🎉',
+          anyOff ? 'err' : 'good');
+        return;
+      }
+      solution = { moves: moves, stages: stages, centerMsg: centerMsg };
+      enterSolveMode();
+    }, 20);
+  };
+
+  document.getElementById('resetBtn').onclick = function(){
+    for (var f=0; f<6; f++) for (var i=0;i<9;i++) colors[f*9+i]=FACES[f];
+    centerOrient={U:0,R:0,F:0,D:0,L:0,B:0};
+    clearScan(); resetColors();
+    hideMsg(); render();
+  };
+  document.getElementById('scrambleBtn').onclick = function(){
+    var scr = E.scramble(25);
+    var st = E.applySeq(E.solvedState(), scr);
+    for (var i=0;i<54;i++) colors[i]=FACES[st[i]];
+    // also rotate the centre pictures the way the scramble would (keeps the
+    // demo physically consistent so the centre fix is solvable)
+    var t = solutionTwist(scr);
+    FACES.forEach(function(f){ centerOrient[f] = t[f]; });
+    clearScan(); resetColors();
+    hideMsg(); render();
+  };
+
+  // ---- webcam colour scan ----
+  // Capture 6 faces in a guided order; classify each sticker by nearest centre
+  // colour; fill the net (and use the real scanned colours for display). It's a
+  // best-effort scan - you review and fix on the net before solving.
+  var SCAN_ORDER = ['F','R','B','L','U','D'];
+  var SCAN_HINT = {
+    F:'Hold any face square to the camera. This one becomes the Front.',
+    R:'Turn the whole cube LEFT (keep the same side up).',
+    B:'Turn LEFT again.',
+    L:'Turn LEFT again.',
+    U:'Tilt the cube so the TOP face faces the camera (front edge points down).',
+    D:'Tilt the cube so the BOTTOM face faces the camera (front edge points up).'
+  };
+  var camStream=null, camRaw={}, camStep=0;
+  var camWrap=document.getElementById('camWrap'), camVideo=document.getElementById('camVideo'),
+      camCanvas=document.getElementById('camCanvas'), camInfo=document.getElementById('camInfo');
+  function showCamPanel(on){
+    camWrap.classList.toggle('show', on);
+    ['selColor','palette','paintHint','net','editBtns'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.style.display = on?'none':'';
+    });
+  }
+  function updateCamInfo(){
+    var f=SCAN_ORDER[camStep];
+    var done=SCAN_ORDER.filter(function(ff){ return camRaw[ff]; }).length;
+    var dots=SCAN_ORDER.map(function(ff,i){
+      var col = camRaw[ff] ? 'rgb('+camRaw[ff][4].map(Math.round).join(',')+')' : 'transparent';
+      return '<span data-i="'+i+'" title="redo this face" style="background:'+col+(i===camStep?';border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)':'')+'"></span>';
+    }).join('');
+    camInfo.innerHTML='<b>'+(camRaw[f]?'Re-scanning this face.':'Face '+(camStep+1)+' of 6.')+'</b> '+SCAN_HINT[f]+
+      ' <span style="opacity:.7">('+done+'/6 done - drag the cube to look, tap a dot to redo)</span>'+
+      '<div class="camDots">'+dots+'</div>';
+    updateScanCube();
+  }
+  function updateDoneBtn(){
+    var all=SCAN_ORDER.every(function(ff){ return camRaw[ff]; });
+    var b=document.getElementById('camDone'); if(b) b.disabled=!all;
+  }
+  // mini 3D guide cube: fills captured faces with real colours, highlights the
+  // next face to show, and rotates to demonstrate the turn.
+  var scanCubeEl=document.getElementById('scanCube'), scanFacelets={}, scanCubeBuilt=false, SS=22;
+  var SCAN_VIEW={F:[-14,-20],R:[-14,-110],B:[-14,-200],L:[-14,-290],U:[-82,-290],D:[66,-290]};
+  var scanRot=[-14,-20];
+  function applyScanView(){ scanCubeEl.style.transform='rotateX('+scanRot[0]+'deg) rotateY('+scanRot[1]+'deg)'; }
+  function buildScanCube(){
+    if(scanCubeBuilt) return;
+    var look={}; for(var i=0;i<54;i++){ var pk=E.pos[i].join(','); (look[pk]=look[pk]||{})[dirKey(E.nor[i])]=i; }
+    var FT={'z+':'translateZ('+(SS/2)+'px)','z-':'rotateY(180deg) translateZ('+(SS/2)+'px)','x+':'rotateY(90deg) translateZ('+(SS/2)+'px)','x-':'rotateY(-90deg) translateZ('+(SS/2)+'px)','y+':'rotateX(90deg) translateZ('+(SS/2)+'px)','y-':'rotateX(-90deg) translateZ('+(SS/2)+'px)'};
+    for(var x=-1;x<=1;x++)for(var y=-1;y<=1;y++)for(var z=-1;z<=1;z++){
+      if(!x&&!y&&!z) continue; var pk=[x,y,z].join(',');
+      var el=document.createElement('div'); el.className='cubie'; el.style.transform='translate3d('+(x*SS)+'px,'+(-y*SS)+'px,'+(z*SS)+'px)';
+      DIRS.forEach(function(d){
+        var fd=document.createElement('div'); fd.className='facelet3d';
+        fd.style.width=SS+'px'; fd.style.height=SS+'px'; fd.style.left=(-SS/2)+'px'; fd.style.top=(-SS/2)+'px'; fd.style.transform=FT[d];
+        var fi=look[pk]?look[pk][d]:undefined;
+        if(fi!==undefined){ fd.classList.add('outer'); scanFacelets[fi]=fd; } else fd.style.background='#13161c';
+        el.appendChild(fd);
+      });
+      scanCubeEl.appendChild(el);
+    }
+    scanCubeBuilt=true;
+  }
+  function updateScanCube(){
+    if(!scanCubeBuilt) return;
+    var base={U:0,R:9,F:18,D:27,L:36,B:45};
+    for(var i=0;i<54;i++){ var el=scanFacelets[i]; if(!el) continue;
+      var f=FACES[Math.floor(i/9)];
+      if(camRaw[f]){ var rgb=camRaw[f][i-base[f]]; el.style.background='rgb('+rgb.map(Math.round).join(',')+')'; el.classList.remove('todo'); }
+      else { el.style.background='#262b36'; el.classList.toggle('todo', f===SCAN_ORDER[camStep]); }
+    }
+    scanRot=(SCAN_VIEW[SCAN_ORDER[camStep]]||[-14,-20]).slice();
+    applyScanView();
+  }
+  function startScan(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showMsg('The camera scan needs the local server. In the CubeSolver folder run "node serve.js", then open http://localhost:8123 (a camera can\'t run from a file:// page).','err'); return;
+    }
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } } }).then(function(s){
+      camStream=s; camVideo.srcObject=s; camVideo.play();
+      tryAutoFocus(s);
+      camRaw={}; camStep=0; hideMsg(); buildScanCube(); showCamPanel(true); updateCamInfo();
+    }).catch(function(e){
+      showMsg('Could not open the camera ('+e.name+'). Allow camera access, and make sure the page is on http://localhost (not file://).','err');
+    });
+  }
+  function sampleFace(){
+    var w=camVideo.videoWidth, h=camVideo.videoHeight; if(!w||!h) return null;
+    camCanvas.width=w; camCanvas.height=h;
+    var ctx=camCanvas.getContext('2d'); ctx.drawImage(camVideo,0,0,w,h);
+    var sq=Math.min(w,h)*0.7, ox=(w-sq)/2, oy=(h-sq)/2, cell=sq/3, out=[];
+    for(var r=0;r<3;r++) for(var c=0;c<3;c++){
+      var cx=Math.round(ox+cell*(c+0.5)), cy=Math.round(oy+cell*(r+0.5));
+      var d=ctx.getImageData(cx-7,cy-7,14,14).data, R=0,G=0,B=0,n=0;
+      for(var i=0;i<d.length;i+=4){ R+=d[i]; G+=d[i+1]; B+=d[i+2]; n++; }
+      out.push([R/n,G/n,B/n]);
+    }
+    return out;
+  }
+  function captureStep(){
+    var s=sampleFace();
+    if(!s){ showMsg('Camera not ready yet - try again in a second.','err'); return; }
+    camRaw[SCAN_ORDER[camStep]]=s;
+    // advance to the next face that hasn't been captured yet (if any)
+    for(var k=1;k<=6;k++){ var idx=(camStep+k)%6; if(!camRaw[SCAN_ORDER[idx]]){ camStep=idx; break; } }
+    updateCamInfo(); updateDoneBtn();
+  }
+  function finishScan(){
+    stopScan();
+    var refs=SCAN_ORDER.map(function(f){ return { f:f, c:camRaw[f][4] }; });
+    // classify by nearest centre + confidence from the margin to the runner-up
+    function classify(rgb){
+      var ds=refs.map(function(rf){ var dr=rgb[0]-rf.c[0],dg=rgb[1]-rf.c[1],db=rgb[2]-rf.c[2]; return { f:rf.f, d:Math.sqrt(dr*dr+dg*dg+db*db) }; });
+      ds.sort(function(a,b){ return a.d-b.d; });
+      var d1=ds[0].d, d2=ds[1].d, m=(d2-d1)/(d1+d2+1);
+      return { face:ds[0].f, conf:Math.max(0,Math.min(1,m*2.2)), d1:d1, d2:d2 };
+    }
+    var base={U:0,R:9,F:18,D:27,L:36,B:45};
+    scanData=[]; flagged={};
+    SCAN_ORDER.forEach(function(f){
+      for(var i=0;i<9;i++){
+        var idx=base[f]+i, rgb=camRaw[f][i], cl=classify(rgb);
+        colors[idx]=cl.face;
+        scanData[idx]={ idx:idx, rgb:rgb, pred:cl.face, conf:cl.conf, d1:cl.d1, d2:cl.d2 };
+        if(i!==4 && cl.conf<0.40) flagged[idx]=true; // centres (i===4) are the reference
+      }
+    });
+    // show the cube in your real scanned colours so it matches your physical cube
+    SCAN_ORDER.forEach(function(f){ COLORS[f]='rgb('+camRaw[f][4].map(Math.round).join(',')+')'; });
+    refreshPalette(); render();
+    var confs=[]; for(var k=0;k<54;k++){ if(scanData[k] && k%9!==4) confs.push(scanData[k].conf); }
+    var avg=confs.reduce(function(a,b){return a+b;},0)/confs.length;
+    var nflag=Object.keys(flagged).length;
+    var cnt={U:0,R:0,F:0,D:0,L:0,B:0}; for(var c=0;c<54;c++) cnt[colors[c]]++;
+    var balanced=FACES.every(function(f){ return cnt[f]===9; });
+    document.getElementById('exportScanBtn').style.display='';
+    showMsg('Scan confidence ~'+Math.round(avg*100)+'%. '+
+      (nflag? nflag+' sticker'+(nflag>1?'s':'')+' marked <b>?</b> look uncertain - check those first. ' : 'No obvious problems. ')+
+      (balanced? '' : 'Colour counts are uneven, so something is mis-read. ')+
+      'Fix any wrong stickers (click/drag), then Solve. Hit <b>Copy scan data</b> to send me the results so I can improve the scanner.',
+      (nflag||!balanced)?'err':'good');
+  }
+  function stopScan(){ if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); camStream=null; } showCamPanel(false); }
+  function refreshPalette(){ Array.prototype.forEach.call(palette.children,function(sw){ sw.style.background=COLORS[sw.dataset.f]; }); }
+  document.getElementById('scanBtn').onclick=startScan;
+  document.getElementById('camCapture').onclick=captureStep;
+  document.getElementById('camCancel').onclick=stopScan;
+  document.getElementById('camDone').onclick=function(){ if(SCAN_ORDER.every(function(ff){return camRaw[ff];})) finishScan(); };
+  // tap a face dot to redo that face
+  camInfo.addEventListener('click', function(e){
+    var d=e.target.closest && e.target.closest('[data-i]'); if(!d) return;
+    camStep=+d.getAttribute('data-i'); updateCamInfo();
+  });
+  // drag the guide cube to look around
+  (function(){
+    var scene=document.querySelector('.scanScene'), dragging=false, lx=0, ly=0;
+    if(!scene) return;
+    scene.addEventListener('pointerdown', function(e){ dragging=true; lx=e.clientX; ly=e.clientY; scanCubeEl.style.transition='none'; e.preventDefault(); });
+    scene.addEventListener('pointermove', function(e){ if(!dragging) return; scanRot[1]+=(e.clientX-lx)*0.6; scanRot[0]-=(e.clientY-ly)*0.6; scanRot[0]=Math.max(-90,Math.min(90,scanRot[0])); lx=e.clientX; ly=e.clientY; applyScanView(); });
+    window.addEventListener('pointerup', function(){ if(dragging){ dragging=false; scanCubeEl.style.transition=''; } });
+    window.addEventListener('pointercancel', function(){ dragging=false; });
+  })();
+  function resetColors(){ FACES.forEach(function(f){ COLORS[f]=DEFAULT_COLORS[f]; }); refreshPalette(); }
+  function clearScan(){ flagged={}; scanData=null; var b=document.getElementById('exportScanBtn'); if(b) b.style.display='none'; }
+  function fallbackCopy(t){ var ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
+  function tryAutoFocus(stream){ try{ var tr=stream.getVideoTracks()[0]; if(!tr||!tr.getCapabilities) return; var caps=tr.getCapabilities(), adv=[]; if(caps.focusMode && caps.focusMode.indexOf('continuous')>=0) adv.push({focusMode:'continuous'}); if(adv.length) tr.applyConstraints({advanced:adv}); }catch(e){} }
+  document.getElementById('exportScanBtn').onclick=function(){
+    if(!scanData) return;
+    var out=[]; for(var i=0;i<54;i++){ var d=scanData[i]; if(!d) continue; out.push({face:FACES[Math.floor(i/9)],idx:i,rgb:d.rgb.map(Math.round),predicted:d.pred,corrected:colors[i],conf:Math.round(d.conf*100)}); }
+    var json=JSON.stringify(out); console.log('SCAN_DATA',json);
+    function ok(){ showMsg('Scan data for '+out.length+' stickers copied to your clipboard. Paste it to me and I can use it to tune the colour detection. (Fix any wrong stickers first so the data is labelled right.)','good'); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(json).then(ok,function(){ fallbackCopy(json); ok(); }); }
+    else { fallbackCopy(json); ok(); }
+  };
+  buildScanCube(); updateScanCube(); // ready the guide cube up front
+
+  // ---- solve mode UI ----
+  var solCard=document.getElementById('solCard'),
+      stagesEl=document.getElementById('stages'),
+      counterEl=document.getElementById('counter'),
+      centerNote=document.getElementById('centerNote');
+
+  function enterSolveMode(){
+    mode='solve';
+    document.getElementById('paintHint').style.display='none';
+    solCard.classList.remove('hidden');
+    // flatten moves with stage index
+    flatMoves=[];
+    solution.stages.forEach(function(st,si){
+      st.moves.forEach(function(m){ flatMoves.push({m:m, si:si}); });
+    });
+    stepPtr=0;
+    playing=false; setPlayBtn();
+    viewState=toState();
+    document.getElementById('net').style.display='none';
+    sceneEl.classList.add('show');
+    document.getElementById('dragHint').style.display='';
+    build3D(); render3D(viewState);
+    initFaceUp(solution.moves); renderFaceArrows();
+    renderStages();
+    updateStep();
+    centerNote.innerHTML = '<b>Centre pictures:</b> ' + (solution.centerMsg || '');
+  }
+
+  document.getElementById('editBtn').onclick=function(){
+    stopPlay();
+    if (animating) return;
+    mode='edit';
+    solCard.classList.add('hidden');
+    document.getElementById('paintHint').style.display='';
+    document.getElementById('net').style.display='';
+    sceneEl.classList.remove('show');
+    document.getElementById('dragHint').style.display='none';
+    render();
+  };
+
+  // small isometric cube thumbnail (U/F/R faces) highlighting the layer a move
+  // turns. Highlighted cells in amber; the move letter conveys direction.
+  var HILITE = {
+    U:{U:'all'}, D:{F:'r2',R:'r2'}, F:{F:'all'}, B:{U:'k2',R:'k2'},
+    R:{R:'all'}, L:{F:'c0',U:'c0'}, M:{F:'c1',U:'c1'}, E:{F:'r1',R:'r1'}, S:{U:'k1',R:'k1'}
+  };
+  var ICON_IDX = { U:['c','k'], F:['c','r'], R:['k','r'] };
+  function moveIcon(move){
+    var spec = HILITE[move[0]] || {};
+    var O=[2,13], RV=[7,0], DV=[0,7], KV=[6,-4];
+    function add(a,b){ return [a[0]+b[0],a[1]+b[1]]; }
+    function mul(a,s){ return [a[0]*s,a[1]*s]; }
+    function quad(P,v1,v2,fill){
+      var p2=add(P,v1), p3=add(p2,v2), p4=add(P,v2);
+      return '<path d="M'+P[0]+' '+P[1]+'L'+p2[0]+' '+p2[1]+'L'+p3[0]+' '+p3[1]+'L'+p4[0]+' '+p4[1]+'Z" fill="'+fill+'" stroke="rgba(0,0,0,.45)" stroke-width=".5" stroke-linejoin="round"/>';
+    }
+    function hit(s,V,i,j){ if(!s) return false; if(s==='all') return true; var L=s[0],val=+s[1],il=ICON_IDX[V]; return il[0]===L ? i===val : il[1]===L ? j===val : false; }
+    var ACC='#ffcf3f', FILL={U:'#eef1f8',F:'#cdd5e8',R:'#aeb8d2'}, out='', c,r,k;
+    for(c=0;c<3;c++)for(r=0;r<3;r++){ out+=quad(add(O,add(mul(RV,c),mul(DV,r))),RV,DV, hit(spec.F,'F',c,r)?ACC:FILL.F); }
+    for(c=0;c<3;c++)for(k=0;k<3;k++){ out+=quad(add(O,add(mul(RV,c),mul(KV,k))),RV,KV, hit(spec.U,'U',c,k)?ACC:FILL.U); }
+    var Rb=add(O,mul(RV,3));
+    for(k=0;k<3;k++)for(r=0;r<3;r++){ out+=quad(add(Rb,add(mul(KV,k),mul(DV,r))),KV,DV, hit(spec.R,'R',k,r)?ACC:FILL.R); }
+    return '<svg class="mvicon" viewBox="0 0 43 36">'+out+'</svg>';
+  }
+
+  function renderStages(){
+    stagesEl.innerHTML='';
+    var fiCounter=0;
+    solution.stages.forEach(function(st,si){
+      if (!st.moves.length) return;
+      var d=document.createElement('div'); d.className='stage';
+      var h=document.createElement('h4'); h.textContent=st.name; d.appendChild(h);
+      var mv=document.createElement('div'); mv.className='moves';
+      st.moves.forEach(function(m){
+        var s=document.createElement('span'); s.className='mv'; s.dataset.si=si; s.dataset.fi=fiCounter++;
+        s.title='Jump to this move';
+        s.innerHTML = moveIcon(m) + '<span class="mvlabel">'+m+'</span>';
+        mv.appendChild(s);
+      });
+      d.appendChild(mv); stagesEl.appendChild(d);
+    });
+  }
+
+  function updateStep(){
+    counterEl.textContent = 'Move '+stepPtr+' of '+flatMoves.length+
+      (stepPtr===flatMoves.length?'  ·  solved! 🎉':'');
+    var pf=document.getElementById('progressFill');
+    if (pf) pf.style.width = (flatMoves.length ? (stepPtr/flatMoves.length*100) : 0)+'%';
+    // colour the move chips
+    var chips=stagesEl.querySelectorAll('.mv');
+    chips.forEach(function(c,i){
+      c.classList.remove('done','cur');
+      if (i<stepPtr) c.classList.add('done');
+      else if (i===stepPtr) c.classList.add('cur');
+    });
+  }
+
+  document.getElementById('nextBtn').onclick=function(){
+    stopPlay();
+    if (animating || stepPtr>=flatMoves.length) return;
+    animateTurn(flatMoves[stepPtr].m, function(){ stepPtr++; updateStep(); });
+  };
+  document.getElementById('prevBtn').onclick=function(){
+    stopPlay();
+    if (animating || stepPtr<=0) return;
+    var m=flatMoves[stepPtr-1].m;
+    var inv = m.length===1 ? m+"'" : m[1]==="'" ? m[0] : m; // invert
+    animateTurn(inv, function(){ stepPtr--; updateStep(); });
+  };
+  document.getElementById('resetStepBtn').onclick=function(){
+    stopPlay();
+    if (animating) return;
+    stepPtr=0; viewState=toState(); render3D(viewState); initFaceUp(solution.moves); renderFaceArrows(); updateStep();
+  };
+
+  // jump straight to any step (e.g. after accidentally pressing Play). Click a
+  // move chip to seek to just before that move. Interrupts any running turn.
+  function goToStep(k){
+    stopPlay();
+    if (animTimer){ clearTimeout(animTimer); animTimer=null; }
+    animating=false; hideTurnLabel();
+    cubies.forEach(function(c){ c.el.style.transition='none'; c.el.style.transform=c.base; c.el.classList.remove('hl'); });
+    k=Math.max(0, Math.min(flatMoves.length, k));
+    viewState=toState(); initFaceUp(solution.moves);
+    for (var j=0;j<k;j++){ viewState=E.applySeq(viewState,[flatMoves[j].m]); applyFaceUpMove(flatMoves[j].m); }
+    stepPtr=k;
+    render3D(viewState); renderFaceArrows(); updateStep();
+  }
+  stagesEl.addEventListener('click', function(e){
+    var chip = e.target.closest && e.target.closest('.mv'); if(!chip) return;
+    var fi = chip.dataset.fi; if(fi!==undefined) goToStep(+fi);
+  });
+
+  // ---- sequence player (auto-play with adjustable speed) ----
+  var playing = false;
+  var playBtn = document.getElementById('playBtn');
+  var speedRange = document.getElementById('speedRange');
+  var speedLabel = document.getElementById('speedLabel');
+  function applySpeed(){
+    var v = +speedRange.value;            // 0 (slow) .. 100 (fast)
+    ANIM_MS = Math.round(720 - (v/100)*(720-150)); // 720ms down to 150ms per turn
+    speedLabel.textContent = v < 28 ? 'Slow' : v > 72 ? 'Fast' : 'Normal';
+  }
+  speedRange.addEventListener('input', applySpeed);
+  applySpeed();
+  function setPlayBtn(){ playBtn.innerHTML = playing ? '⏸ Pause' : '▶ Play'; }
+  function stopPlay(){ if (playing){ playing = false; setPlayBtn(); } }
+  function playLoop(){
+    if (!playing) return;
+    if (stepPtr >= flatMoves.length){ stopPlay(); return; }
+    animateTurn(flatMoves[stepPtr].m, function(){
+      stepPtr++; updateStep();
+      if (playing) setTimeout(playLoop, Math.max(40, ANIM_MS*0.22));
+    });
+  }
+  playBtn.onclick = function(){
+    if (playing){ stopPlay(); return; }
+    if (animating) return;
+    if (stepPtr >= flatMoves.length){ stepPtr=0; viewState=toState(); render3D(viewState); updateStep(); }
+    playing = true; setPlayBtn(); playLoop();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
