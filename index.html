@@ -1607,7 +1607,7 @@
   document.getElementById('exportScanBtn').onclick=function(){
     if(!scanData) return;
     var out=[]; for(var i=0;i<54;i++){ var d=scanData[i]; if(!d) continue; out.push({face:FACES[Math.floor(i/9)],idx:i,rgb:d.rgb.map(Math.round),predicted:d.pred,corrected:colors[i],conf:Math.round(d.conf*100)}); }
-    var json=JSON.stringify(out); console.log('SCAN_DATA',json);
+    var json=JSON.stringify(out);
     function ok(){ showMsg('Scan data for '+out.length+' stickers copied to your clipboard. Paste it to me and I can use it to tune the colour detection. (Fix any wrong stickers first so the data is labelled right.)','good'); }
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(json).then(ok,function(){ fallbackCopy(json); ok(); }); }
     else { fallbackCopy(json); ok(); }
