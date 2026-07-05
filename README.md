@@ -82,7 +82,5 @@ node test-center.js
 <br/>
 
 <div align="center">
-
-Built by **Wildré Fourie** · [GitHub](https://github.com/Wildre-F) · [LinkedIn](https://www.linkedin.com/in/wildr%C3%A9-fourie-6a3353338/)
-
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=13&pause=1000&color=7f77dd&center=true&vCenter=true&width=560&lines=Solved+from+scratch%2C+one+algorithm+at+a+time." alt="Footer" />
 </div>
